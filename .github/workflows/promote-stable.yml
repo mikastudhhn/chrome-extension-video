@@ -1,0 +1,40 @@
+name: Approve Stable candidate
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: 'Exact Experimental tag, for example v0.6.0-preview.12'
+        required: true
+        type: string
+      tested_commit:
+        description: 'Full commit whose Stable candidate package was practically accepted'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    # Same protected environment as candidate publishing: the owner's required
+    # review is the Stable approval, and only then is the signing key readable.
+    environment: release
+    permissions:
+      contents: write
+    concurrency:
+      group: approve-stable
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Verify, sign and promote accepted files without rebuilding
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          CANDIDATE: ${{ inputs.candidate }}
+          TESTED_COMMIT: ${{ inputs.tested_commit }}
+        run: npm run promote -- stable --candidate "$CANDIDATE" --tested "$TESTED_COMMIT"

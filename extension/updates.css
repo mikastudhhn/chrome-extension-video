@@ -1,0 +1,6 @@
+/* Standalone updates tab: its own page layout, independent of popup sizing. */
+body { width: min(100%, 680px); /* px-ok: reading width */ margin: var(--space-8) auto; padding: 0 var(--space-6); }
+main { padding: var(--space-7) 0; }
+.app-header { padding-inline: 0; padding-top: 0; }
+.page-label { color: var(--color-text-muted); font-size: var(--text-sm); }
+@media (max-width: 380px) { body { margin-block: var(--space-5); padding-inline: var(--space-4); } }

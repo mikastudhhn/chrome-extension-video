@@ -1,0 +1,41 @@
+{
+	email {$ACME_EMAIL}
+	servers {
+		# Slow clients cannot hold connections open while sending headers or
+		# bodies. No write timeout: long polls answer after up to 20 seconds.
+		timeouts {
+			read_header 5s
+			read_body 10s
+			idle 2m
+		}
+	}
+}
+
+{$PUBLIC_ADDRESS} {
+	# Without an explicit issuer Caddy gives IP site addresses a certificate
+	# from its internal CA, which browsers reject. Let's Encrypt only issues
+	# IP certificates with the shortlived (~6 day) profile; Caddy renews them
+	# automatically. Domains work with the same block.
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+	# Same limit as the relay's largest accepted body (16 KiB relay batch).
+	request_body {
+		max_size 16KiB
+	}
+	reverse_proxy app:8787 {
+		# The relay reads only this header (TRUST_PROXY=1). Caddy overwrites
+		# any client-supplied value with the TCP peer address.
+		header_up X-Real-IP {remote_host}
+		# Long polls can be open for 20 seconds without a response body.
+		# Idle upstream connections stay pooled for Caddy's default 2 minutes;
+		# the relay's keep-alive timeout (125 s) is deliberately longer, so
+		# Caddy never reuses a connection that Node is closing (502 on POST).
+		transport http {
+			response_header_timeout 30s
+		}
+		flush_interval -1
+	}
+}

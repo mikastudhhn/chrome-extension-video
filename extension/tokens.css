@@ -1,0 +1,195 @@
+/* Design tokens · three layers.
+ * 1. Primitives  (--palette-*, --size-*, --font-*): raw values, never used by components.
+ * 2. Semantic    (--color-*, --text-*, --space-*, --radius-*, --shadow-*, --motion-*): roles used by components.
+ * 3. Component   (--control-*, --popup-*): derived from semantic roles.
+ * A theme overrides layer 2 only. Built-in themes: light (default) and dark; theme-init.js resolves "system". */
+
+:root {
+  /* ---- 1. Primitives ---- */
+  --palette-green-50: #f0f5f0;
+  --palette-green-100: #e4ede4;
+  --palette-green-200: #d3e2d3;
+  --palette-green-300: #a9c6ad;
+  --palette-green-400: #7fb08a;
+  --palette-green-500: #4f8a63;
+  --palette-green-600: #2f6a4c;
+  --palette-green-700: #275a41;
+  --palette-green-800: #1e4a34;
+  --palette-green-900: #163827;
+  --palette-green-950: #0f2419;
+
+  --palette-neutral-0: #ffffff;
+  --palette-neutral-50: #f7f8f4;
+  --palette-neutral-100: #eef1ea;
+  --palette-neutral-200: #e2e7de;
+  --palette-neutral-300: #ccd5cb;
+  --palette-neutral-400: #a6b3aa;
+  --palette-neutral-500: #6c7d72;
+  --palette-neutral-600: #56675c;
+  --palette-neutral-700: #3c4c43;
+  --palette-neutral-800: #263129;
+  --palette-neutral-900: #1a2420;
+  --palette-neutral-950: #111815;
+
+  --palette-amber-100: #f8ede0;
+  --palette-amber-300: #e7c290;
+  --palette-amber-600: #a25b30;
+  --palette-amber-800: #7a3f1c;
+  --palette-amber-900: #3a2a18;
+
+  --palette-red-100: #fbe8e6;
+  --palette-red-300: #f0a5a1;
+  --palette-red-600: #a5322f;
+  --palette-red-700: #892c2a;
+  --palette-red-900: #3d1c1b;
+
+  --size-1: 4px;
+  --size-2: 8px;
+  --size-3: 12px;
+  --size-4: 16px;
+  --size-5: 20px;
+  --size-6: 24px;
+  --size-7: 32px;
+  --size-8: 40px;
+  --size-9: 48px;
+  --size-10: 56px;
+  --size-11: 72px;
+  --size-12: 96px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ---- 2. Semantic · colour (light) ---- */
+  color-scheme: light;
+  --color-bg: var(--palette-neutral-100);
+  --color-surface: var(--palette-neutral-0);
+  --color-surface-muted: var(--palette-neutral-100);
+  --color-surface-hover: var(--palette-neutral-200);
+  --color-field: var(--palette-neutral-50);
+  --color-border: var(--palette-neutral-200);
+  --color-border-strong: var(--palette-neutral-500);
+  --color-text: var(--palette-neutral-900);
+  --color-text-muted: var(--palette-neutral-600);
+  --color-text-disabled: var(--palette-neutral-500);
+  --color-accent: var(--palette-green-700);
+  --color-accent-hover: var(--palette-green-800);
+  --color-accent-active: var(--palette-green-900);
+  --color-on-accent: var(--palette-neutral-0);
+  --color-accent-soft: var(--palette-green-100);
+  --color-accent-soft-hover: var(--palette-green-200);
+  --color-focus: var(--palette-green-600);
+  --color-success: var(--palette-green-700);
+  --color-warning: var(--palette-amber-800);
+  --color-warning-surface: var(--palette-amber-100);
+  --color-warning-border: var(--palette-amber-600);
+  --color-danger: var(--palette-red-600);
+  --color-danger-hover: var(--palette-red-700);
+  --color-on-danger: var(--palette-neutral-0);
+  --color-danger-surface: var(--palette-red-100);
+
+  /* ---- 2. Semantic · typography ---- */
+  --text-xs: 0.786rem;   /* 11px */
+  --text-sm: 0.857rem;   /* 12px */
+  --text-base: 1rem;     /* 14px */
+  --text-md: 1.143rem;   /* 16px */
+  --text-lg: 1.286rem;   /* 18px */
+  --text-xl: 1.571rem;   /* 22px */
+  --text-2xl: 1.857rem;  /* 26px */
+  --leading-tight: 1.25;
+  --leading-snug: 1.35;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.55;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.06em;
+
+  /* ---- 2. Semantic · spacing, shape, depth, motion ---- */
+  --space-1: var(--size-1);
+  --space-2: var(--size-2);
+  --space-3: var(--size-3);
+  --space-4: var(--size-4);
+  --space-5: var(--size-5);
+  --space-6: var(--size-6);
+  --space-7: var(--size-7);
+  --space-8: var(--size-8);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 20, 0.06);
+  --shadow-md: 0 4px 16px rgba(16, 24, 20, 0.10);
+  --shadow-card: 0 1px 2px rgba(16, 24, 20, 0.04), 0 2px 8px rgba(16, 24, 20, 0.04);
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* ---- 3. Component ---- */
+  --popup-width: 360px;
+  --popup-height: 560px;
+  --control-height: var(--size-8);
+  --control-height-lg: 44px;
+  --control-padding-x: var(--space-3);
+  --control-radius: var(--radius-md);
+  --control-gap: var(--space-2);
+  --card-padding: var(--space-4);
+  --card-radius: var(--radius-lg);
+  --row-height: var(--control-height-lg);
+  --row-radius: var(--radius-md);
+  --hero-art-size: var(--size-11);
+  --card-icon-size: var(--space-6);
+  --page-padding: var(--space-4);
+  --section-gap: var(--space-3);
+  --status-dot-size: var(--size-2);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: var(--palette-neutral-950);
+  --color-surface: var(--palette-neutral-900);
+  --color-surface-muted: var(--palette-neutral-800);
+  --color-surface-hover: var(--palette-neutral-700);
+  --color-field: var(--palette-neutral-800);
+  --color-border: var(--palette-neutral-800);
+  --color-border-strong: var(--palette-neutral-400);
+  --color-text: var(--palette-neutral-100);
+  --color-text-muted: var(--palette-neutral-400);
+  --color-text-disabled: var(--palette-neutral-500);
+  --color-accent: var(--palette-green-400);
+  --color-accent-hover: var(--palette-green-300);
+  --color-accent-active: var(--palette-green-500);
+  --color-on-accent: var(--palette-green-950);
+  --color-accent-soft: var(--palette-green-900);
+  --color-accent-soft-hover: var(--palette-green-800);
+  --color-focus: var(--palette-green-300);
+  --color-success: var(--palette-green-400);
+  --color-warning: var(--palette-amber-300);
+  --color-warning-surface: var(--palette-amber-900);
+  --color-warning-border: var(--palette-amber-600);
+  --color-danger: var(--palette-red-600);
+  --color-danger-hover: var(--palette-red-700);
+  --color-on-danger: var(--palette-neutral-0);
+  --color-danger-surface: var(--palette-red-900);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+@media (forced-colors: active) {
+  :root, :root[data-theme="dark"] {
+    --color-bg: Canvas; --color-surface: Canvas; --color-surface-muted: Canvas; --color-surface-hover: Canvas; --color-field: Canvas;
+    --color-border: CanvasText; --color-border-strong: ButtonText;
+    --color-text: CanvasText; --color-text-muted: CanvasText; --color-text-disabled: GrayText;
+    --color-accent: LinkText; --color-accent-hover: LinkText; --color-accent-active: LinkText; --color-on-accent: Canvas;
+    --color-accent-soft: Canvas; --color-accent-soft-hover: Canvas; --color-focus: Highlight; --color-success: CanvasText;
+    --color-warning: CanvasText; --color-warning-surface: Canvas; --color-warning-border: CanvasText;
+    --color-danger: CanvasText; --color-danger-hover: CanvasText; --color-on-danger: Canvas; --color-danger-surface: Canvas;
+    --shadow-sm: none; --shadow-md: none;
+  }
+}

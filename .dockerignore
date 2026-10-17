@@ -1,0 +1,8 @@
+# Allowlist: the build context contains only what the Dockerfile copies,
+# never deploy/.env, Git data, tests or packaged extensions.
+*
+!package.json
+!server/
+!extension/protocol.js
+!extension/runtime-errors.js
+!demo/

@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Video Sync",
+  "version": "0.6.0",
+  "version_name": "0.6.0",
+  "description": "Zwei Videoquellen manuell ausrichten und gemeinsam ansehen.",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "scripting", "offscreen", "storage", "webNavigation", "alarms"],
+  "optional_permissions": ["tabCapture"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "icons": { "16": "assets/icons/pause-16.png", "32": "assets/icons/pause-32.png", "48": "assets/icons/pause-48.png", "128": "assets/icons/pause-128.png" },
+  "action": { "default_popup": "popup.html", "default_title": "Video Sync", "default_icon": { "16": "assets/icons/pause-16.png", "32": "assets/icons/pause-32.png", "48": "assets/icons/pause-48.png", "128": "assets/icons/pause-128.png" } }
+}

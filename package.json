@@ -1,0 +1,35 @@
+{
+  "name": "video-sync-mvp",
+  "version": "0.6.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/check.js",
+    "package": "node scripts/package-extension.js",
+    "dev": "node scripts/development-build.js --watch",
+    "dev:prepare": "node scripts/development-build.js",
+    "soak": "node scripts/soak.js",
+    "manual-test": "node scripts/manual-test.js",
+    "setup:git": "node scripts/install-hooks.js",
+    "promote": "node scripts/promote.js",
+    "release:sign": "node scripts/release-sign.js sign",
+    "release:verify": "node scripts/release-sign.js verify",
+    "check:types": "node scripts/check-quality.js types",
+    "check:lint": "node scripts/check-quality.js lint",
+    "check:format": "node scripts/check-quality.js format",
+    "test:browser": "node scripts/browser-tests.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.3.0",
+    "eslint": "10.11.0",
+    "playwright": "1.62.1",
+    "prettier": "3.9.8",
+    "typescript": "5.9.3"
+  }
+}

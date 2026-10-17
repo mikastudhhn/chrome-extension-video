@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["chrome"],
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": [
+    "extension/protocol.js",
+    "extension/runtime-errors.js",
+    "extension/errors.js",
+    "extension/update-recovery.js",
+    "tests/types/**/*.js"
+  ]
+}

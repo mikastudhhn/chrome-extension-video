@@ -1,0 +1,2 @@
+# Bundled font supports ImageFont.load_default(size=55); no system font required.
+Pillow==11.3.0

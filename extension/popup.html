@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Video Sync</title>
+  <script src="theme-init.js"></script>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="components.css">
+  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="updates-view.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="mark" aria-hidden="true">Ⅱ</div>
+    <div class="grow"><h1>Video Sync</h1><span id="channel-label" class="badge channel-label">Stable</span></div>
+    <button id="open-settings" class="icon-button" aria-label="Einstellungen" title="Einstellungen" aria-controls="settings" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 3-.7 2.4-1.6.9-2.4-.6-2.5 4.3 1.8 1.8v1.8l-1.8 1.8 2.5 4.3 2.4-.6 1.6.9.7 2.4h5l.7-2.4 1.6-.9 2.4.6 2.5-4.3-1.8-1.8v-1.8l1.8-1.8-2.5-4.3-2.4.6-1.6-.9-.7-2.4Z"/><circle cx="12" cy="12.7" r="3.2"/></svg>
+    </button>
+  </header>
+  <main aria-busy="true">
+    <section id="update-banner" class="update-banner" hidden aria-live="polite">
+      <button id="update-banner-details" class="update-banner-details" title="Update-Details öffnen">
+        <span id="update-banner-title" class="update-banner-title">Neue Version verfügbar</span>
+      </button>
+      <a id="update-banner-notes" class="icon-button round" target="_blank" rel="noopener noreferrer" aria-label="Release-Seite öffnen" title="Release-Seite öffnen" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
+      <button id="update-banner-install" class="icon-button round ring" aria-label="Update herunterladen und installieren" title="Update herunterladen und installieren" hidden>
+        <svg class="ring-svg" viewBox="0 0 40 40" aria-hidden="true"><circle class="ring-track" cx="20" cy="20" r="18"/><circle class="ring-value" cx="20" cy="20" r="18"/></svg>
+        <svg class="icon-download" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+        <svg class="icon-refresh" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>
+      </button>
+    </section>
+
+    <div id="error-panel" class="action-error" hidden><p id="error" role="alert"></p><button id="error-dismiss" class="dismiss-error" aria-label="Hinweis schließen" title="Hinweis schließen">×</button></div>
+
+    <section id="onboarding" class="onboarding page" hidden aria-labelledby="onboarding-title">
+      <div class="onboarding-top">
+        <button id="onboarding-back" class="icon-button" aria-label="Zurück" title="Zurück" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h12"/></svg></button>
+        <ol id="onboarding-stepper" class="stepper" aria-label="Schritt 1 von 6">
+          <li class="step-dot" data-state="current"></li><li class="step-dot"></li><li class="step-dot"></li><li class="step-dot"></li><li class="step-dot"></li><li class="step-dot"></li>
+        </ol>
+      </div>
+
+      <div class="onboarding-step stack centered" data-step="welcome">
+        <div class="hero">
+          <div class="hero-art" aria-hidden="true">Ⅱ</div>
+          <h2 id="onboarding-title" tabindex="-1">Willkommen bei Video Sync</h2>
+          <p>Zwei Personen, zwei eigene Videos, eine gemeinsame Wiedergabe. Übertragen werden nur Steuerdaten, nie Bild oder Ton.</p>
+        </div>
+      </div>
+
+      <div class="onboarding-step stack" data-step="permission" hidden>
+        <div class="stack-tight">
+          <h2>Website-Zugriff einmal erlauben</h2>
+          <p>Damit Video Sync Player auf Streamingseiten und in eingebetteten Frames erkennt. Chrome fragt genau einmal, danach nie wieder.</p>
+        </div>
+        <p id="onboarding-permission-state" class="badge" data-tone="success" hidden>✓ Bereits erlaubt</p>
+      </div>
+
+      <form class="onboarding-step stack" data-step="server" id="onboarding-server-form" novalidate hidden>
+        <div class="stack-tight">
+          <h2>Verbindungsserver</h2>
+          <p>Über diesen Server laufen die Steuerdaten. Die Adresse ist meist schon vorbelegt.</p>
+        </div>
+        <div class="field">
+          <label for="onboarding-server">Serveradresse</label>
+          <input id="onboarding-server" type="url" spellcheck="false" autocomplete="off" placeholder="https://sync.example.org">
+          <p id="onboarding-server-ok" class="hint" data-tone="success" hidden>✓ Server erreichbar und gespeichert.</p>
+        </div>
+      </form>
+
+      <div class="onboarding-step stack" data-step="updates" hidden>
+        <div class="stack-tight">
+          <h2>Updates</h2>
+          <p>Neue Versionen werden automatisch über die öffentlichen GitHub-Releases gefunden und oben im Popup angezeigt. Installiert wird erst nach deinem Klick; dafür fragt Chrome einmal nach Zugriff auf GitHub.</p>
+        </div>
+        <p id="onboarding-updates-state" class="badge" data-tone="success" hidden>✓ GitHub-Downloads erlaubt</p>
+        <details id="onboarding-token-details">
+          <summary>Eigener GitHub-Token (optional)</summary>
+          <form id="onboarding-token-form" class="field" novalidate>
+            <label for="onboarding-token">GitHub-Token</label>
+            <input id="onboarding-token" type="password" autocomplete="off" spellcheck="false" placeholder="Token einfügen">
+            <p class="hint">Nur für eine höhere Abfragegrenze. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Token erstellen ↗</a> · „Public repositories (read-only)“ reicht.</p>
+          </form>
+        </details>
+      </div>
+
+      <div class="onboarding-step stack" data-step="appearance" hidden>
+        <div class="stack-tight">
+          <h2>Darstellung</h2>
+          <p>Beides lässt sich später in den Einstellungen ändern.</p>
+        </div>
+        <div class="control-row">
+          <label for="onboarding-theme">Erscheinungsbild</label>
+          <select id="onboarding-theme"><option value="system">Wie System</option><option value="light">Hell</option><option value="dark">Dunkel</option></select>
+        </div>
+        <div class="control-row">
+          <label for="onboarding-channel">Version</label>
+          <select id="onboarding-channel"><option value="stable">Stable</option><option value="experimental">Experimental</option></select>
+        </div>
+        <p class="hint">Stable ist die freigegebene Version. Experimental enthält neue Funktionen früher.</p>
+      </div>
+
+      <div class="onboarding-step stack centered" data-step="done" hidden>
+        <div class="hero">
+          <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>
+          <h2>Alles bereit</h2>
+          <p>Öffne dein Video, klicke in der Symbolleiste auf Video Sync und verbinde es. Tipp: Das Symbol anheften, dann ist es immer sichtbar.</p>
+        </div>
+      </div>
+
+      <p id="onboarding-message" class="callout" role="alert" hidden></p>
+    </section>
+
+    <div id="player-page" class="page">
+      <section id="setup" class="stack">
+        <div class="hero">
+          <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5Z"/><path d="m10 9 5 3-5 3Z"/></svg></div>
+          <h2 id="setup-title">Video verbinden</h2>
+          <p id="setup-description">Öffne die Extension in deinem Video-Tab.</p>
+        </div>
+        <div id="frame-access" class="callout stack-tight" hidden>
+          <p id="frame-access-description"></p>
+          <button id="allow-player" class="secondary full-width">Player erlauben & verbinden</button>
+        </div>
+        <div id="player-selection" class="card stack-tight" hidden aria-labelledby="player-selection-title">
+          <h3 id="player-selection-title" class="card-title"><span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>Video auswählen</h3>
+          <div id="player-choices" class="list"></div>
+          <button id="cancel-player-choice" class="text-button full-width">Auswahl abbrechen</button>
+        </div>
+      </section>
+
+      <section id="video-summary" class="video-summary" hidden aria-label="Verbundenes Video">
+        <button id="show-video" class="video-link" title="Dein Video" aria-label="Zum Video wechseln: Dein Video">
+          <span class="row-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 6 10 6-10 6Z"/></svg></span>
+          <span id="player-description">Dein Video</span>
+          <svg class="video-link-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+        </button>
+        <output id="position" class="tabular" aria-label="Deine Videoposition" aria-live="off">—</output>
+      </section>
+
+      <section id="lobby" class="stack" hidden>
+        <div class="stack-tight">
+          <h2>Gemeinsam ansehen</h2>
+          <p>Erstelle einen Raum und teile die Einladung, oder tritt mit einer Einladung bei.</p>
+        </div>
+        <div id="create-feedback">
+          <div id="room-error" class="action-error" hidden>
+            <div role="alert"><strong id="room-error-title"></strong><p id="room-error-detail"></p></div>
+            <button id="room-error-dismiss" class="dismiss-error" aria-label="Meldung schließen" title="Meldung schließen">×</button>
+            <button id="room-error-server" class="text-button" hidden>Serveradresse ändern</button>
+            <button id="room-error-invitation" class="text-button" hidden>Einladung prüfen</button>
+          </div>
+        </div>
+        <form id="join-form" class="card stack-tight" novalidate>
+          <label for="code">Einladung oder Raumcode einfügen</label>
+          <div class="code-input">
+            <div id="code-cells" class="code-cells" aria-hidden="true"></div>
+            <textarea id="code" rows="2" maxlength="1024" autocomplete="off" spellcheck="false" aria-describedby="join-hint code-server"></textarea>
+          </div>
+          <p id="code-server" class="hint" hidden></p>
+          <p id="join-hint" class="hint field-error" hidden></p>
+          <button id="join" class="secondary full-width" disabled>Beitreten</button>
+        </form>
+        <div id="server-confirm" class="callout stack-tight" hidden>
+          <div role="alert"><strong id="server-confirm-title"></strong><p>Die Einladung nutzt einen anderen Server als deine Einstellung. Er gilt nur für diesen Raum; deine Serveradresse bleibt unverändert.</p></div>
+          <button id="server-confirm-join" type="button" class="secondary full-width">Beitreten</button>
+          <button id="server-confirm-cancel" type="button" class="text-button">Abbrechen</button>
+        </div>
+        <div id="join-feedback"></div>
+      </section>
+
+      <section id="room" class="stack" hidden>
+        <div class="stack-tight">
+          <div class="session-heading"><span id="status-dot" class="status-dot" aria-hidden="true"></span><h2 id="status" role="status" tabindex="-1">Verbindung wird aufgebaut</h2></div>
+          <p id="instruction">Teile die Einladung mit der zweiten Person.</p>
+        </div>
+        <div id="invite" class="card stack-tight" hidden>
+          <h3 class="card-title"><span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5Z"/><path d="m4.5 8 7.5 5 7.5-5"/></svg></span>Raumcode</h3>
+          <div id="room-code" class="code-cells" role="img" aria-label="Raumcode"></div>
+          <p class="hint">Teile die vollständige Einladung. Sie enthält Raumcode und Serveradresse.</p>
+        </div>
+        <div id="members" class="members" role="group" aria-label="Teilnehmer"><span id="self-ready" class="member">Du</span><span id="peer-ready" class="member">Zweite Person</span></div>
+      </section>
+
+      <div id="video-actions" class="video-actions" hidden><button id="change-video" class="text-button full-width">Anderes Video verbinden</button></div>
+    </div>
+
+    <section id="settings" class="page" hidden aria-labelledby="settings-title">
+      <div class="page-heading">
+        <button id="settings-back" class="icon-button" aria-label="Zurück zum Player" title="Zurück zum Player"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h12"/></svg></button>
+        <h2 id="settings-title">Einstellungen</h2>
+      </div>
+
+      <div class="section card" id="connection-section">
+        <h3 class="card-title"><span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/></svg></span>Verbindung</h3>
+        <form id="server-settings" class="field" novalidate>
+          <label for="server">Verbindungsserver</label>
+          <input id="server" type="url" value="http://localhost:8787" spellcheck="false" autocomplete="off" aria-describedby="server-hint server-feedback">
+          <p id="server-hint" class="hint">Für neue Räume. Eine vollständige Einladung übernimmt ihren eigenen Server beim Beitritt.</p>
+          <div class="field-actions"><button id="server-save" class="secondary compact" disabled>Speichern</button><button id="server-cancel" type="button" class="text-button" disabled>Verwerfen</button></div>
+          <p id="server-feedback" class="hint" role="status" tabindex="-1"></p>
+        </form>
+        <div id="session-details" class="stack-tight" hidden>
+          <p id="connection-detail" class="hint"></p>
+          <p class="hint">Raumcode: <code id="details-code"></code></p>
+          <button id="copy-again" class="text-button full-width">Einladung erneut kopieren</button>
+        </div>
+      </div>
+
+      <div class="section card" id="appearance-section">
+        <h3 class="card-title"><span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg></span>Darstellung</h3>
+        <div class="control-row">
+          <label for="theme">Erscheinungsbild</label>
+          <select id="theme"><option value="system">Wie System</option><option value="light">Hell</option><option value="dark">Dunkel</option></select>
+        </div>
+        <div class="control-row">
+          <label for="release-channel">Version</label>
+          <select id="release-channel" aria-describedby="channel-hint"><option value="stable">Stable</option><option value="experimental">Experimental</option></select>
+        </div>
+        <p id="channel-hint" class="hint">Stable ist voreingestellt. Die Version bestimmt, welche Releases der Updater anbietet.</p>
+      </div>
+
+      <div class="section card" id="room-settings" hidden>
+        <h3 class="card-title"><span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5a4.5 4.5 0 0 1 5 4.5"/></svg></span>Raum</h3>
+        <button id="resync" class="secondary full-width" hidden>Szene neu ausrichten</button>
+        <button id="leave" class="danger full-width" hidden>Raum verlassen</button>
+      </div>
+
+      <div class="section card" id="advanced-section">
+        <h3 class="card-title"><span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>Erweitert</h3>
+        <div class="list">
+          <button id="open-updates" class="list-row"><span class="row-main">Updates<span class="row-sub">Zugang, Ordner, Wiederherstellung</span></span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+          <button id="open-onboarding" class="list-row"><span class="row-main">Einrichtung erneut öffnen</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        </div>
+        <div>
+          <details id="capture-lab" class="lab-panel" hidden>
+            <summary>Tonzugriff testen</summary>
+            <div class="stack-tight">
+              <p class="hint">Vor dem Raumbeitritt: Video abspielen, dieses Popup im Video-Tab öffnen und 8 Sekunden testen. Keine Aufnahme wird gespeichert oder übertragen.</p>
+              <button id="lab-start" class="secondary full-width">Tontest starten</button>
+              <button id="lab-cancel" class="secondary full-width" hidden>Test abbrechen</button>
+              <p id="lab-status" class="hint" role="status"></p>
+              <p id="lab-metrics" class="hint" hidden></p>
+              <button id="lab-copy" class="text-button full-width" hidden>Diagnose kopieren</button>
+            </div>
+          </details>
+          <details id="diagnostics-panel" class="diagnostics-panel">
+            <summary id="diagnostics-summary">Synchronisationsdiagnose</summary>
+            <div class="stack-tight">
+              <p class="hint" id="diagnostics-retention">Nur lokal, höchstens 30 Minuten und 200 Ereignisse. Beim Neuladen der Engine wird der Puffer geleert.</p>
+              <p id="diagnostics-privacy" class="hint">Der Export enthält Versionen, Zustandswechsel und Messwerte, keine Zugangsdaten, Einladungen, Raumcodes oder Videoinhalte.</p>
+              <p id="diagnostics-availability" class="hint">Diese Engine unterstützt die lokale Diagnose noch nicht.</p>
+              <div class="diagnostics-actions">
+                <button id="diagnostics-export" type="button" class="secondary full-width" aria-describedby="diagnostics-retention diagnostics-privacy" disabled>Diagnose exportieren</button>
+                <button id="diagnostics-clear" type="button" class="text-button full-width" aria-describedby="diagnostics-retention" disabled>Diagnose löschen</button>
+              </div>
+              <p class="hint" id="diagnostics-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <footer class="app-footer">
+        <span id="environment">Deine Videos bleiben bei dir</span>
+        <span id="edition" class="edition tabular">Video Sync</span>
+        <div id="experimental-credit" hidden>Made with ❤️ in Heilbronn</div>
+      </footer>
+    </section>
+
+    <section id="updates-page" class="page" hidden aria-labelledby="updates-title">
+      <div class="page-heading">
+        <button id="updates-back" class="icon-button" aria-label="Zurück zu Einstellungen" title="Zurück zu Einstellungen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h12"/></svg></button>
+        <h2 id="updates-title">Updates</h2>
+      </div>
+      <div id="updates-content" class="updates-view card"></div>
+    </section>
+
+    <p id="feedback" class="sr-only" role="status"></p>
+  </main>
+
+  <footer id="page-actions" class="page-actions">
+    <div id="onboarding-actions" class="actions-group" hidden>
+      <button id="onboarding-start" class="primary" data-step-action="welcome">Einrichtung starten</button>
+      <button id="onboarding-later" class="text-button full-width" data-step-action="welcome">Später einrichten</button>
+      <button id="onboarding-allow" class="primary" data-step-action="permission">Zugriff erlauben</button>
+      <button id="onboarding-permission-next" class="primary" data-step-action="permission" hidden>Weiter</button>
+      <button id="onboarding-permission-skip" class="text-button full-width" data-step-action="permission">Später pro Website erlauben</button>
+      <button id="onboarding-server-check" class="primary" type="submit" form="onboarding-server-form" data-step-action="server">Prüfen &amp; weiter</button>
+      <button id="onboarding-server-anyway" class="text-button full-width" type="button" data-step-action="server" hidden>Trotzdem speichern und weiter</button>
+      <button id="onboarding-updates-allow" class="primary" data-step-action="updates">GitHub-Downloads erlauben</button>
+      <button id="onboarding-token-save" class="primary" type="submit" form="onboarding-token-form" data-step-action="updates" hidden>Token speichern &amp; weiter</button>
+      <button id="onboarding-updates-next" class="primary" data-step-action="updates" hidden>Weiter</button>
+      <button id="onboarding-updates-skip" class="text-button full-width" data-step-action="updates">Später erlauben</button>
+      <button id="onboarding-appearance-next" class="primary" data-step-action="appearance">Weiter</button>
+      <button id="onboarding-finish" class="primary" data-step-action="done">Fertig</button>
+    </div>
+    <div id="player-actions" class="actions-group">
+      <div id="permissions" class="stack-tight">
+        <button id="allow-all" class="primary">Einmal erlauben & verbinden</button>
+        <p id="permissions-description" class="hint">Freigabe für alle Websites. Bleibt gespeichert.</p>
+      </div>
+      <button id="attach" class="text-button full-width">Nur dieses Video verbinden</button>
+      <button id="create" class="primary" hidden>Raum erstellen</button>
+      <button id="copy" class="primary" hidden>Einladung kopieren</button>
+      <button id="ready" class="primary" disabled hidden>Diese Szene bestätigen</button>
+      <button id="unblock" class="secondary full-width" hidden>Zum Video und dort Play drücken</button>
+      <div id="playback" hidden>
+        <div class="controls" aria-label="Gemeinsame Wiedergabe">
+          <button data-control="back" class="secondary" aria-label="10 Sekunden zurück">−10 s</button>
+          <button data-control="play" id="play" class="primary">Abspielen</button>
+          <button data-control="forward" class="secondary" aria-label="10 Sekunden vor">+10 s</button>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

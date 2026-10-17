@@ -1,0 +1,70 @@
+/* Popup view layout. Components and tokens live in components.css / tokens.css. */
+
+/* Fixed frame: every screen is the same size. Header on top, the page scrolls
+ * inside <main>, the primary action sits in the action bar below. An explicit
+ * intrinsic width is needed while Chrome measures the toolbar popup. */
+html, body { width: var(--popup-width); min-width: var(--popup-width); height: var(--popup-height); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+.app-header { flex: none; }
+main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: var(--page-padding); overflow-y: auto; overscroll-behavior: contain; }
+.page { display: flex; flex-direction: column; flex: 1 0 auto; gap: var(--space-3); }
+.page > .page-heading { margin-bottom: var(--space-1); }
+.channel-label { flex: none; }
+.edition { display: block; margin-top: 2px; color: var(--color-text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* ---- Setup ---- */
+#setup { flex: 1 0 auto; justify-content: center; }
+#setup:has(#player-selection:not([hidden])) { justify-content: flex-start; }
+#player-choices { max-height: 240px; overflow-y: auto; } /* px-ok: scroll region */
+.player-choice { width: 100%; justify-content: flex-start; min-height: var(--row-height); padding: var(--space-2) var(--space-3); border-radius: var(--row-radius); background: var(--color-surface-muted); border-color: transparent; box-shadow: none; text-align: left; white-space: normal; overflow-wrap: anywhere; font-weight: var(--weight-medium); font-size: var(--text-sm); }
+.player-choice:hover:enabled { background: var(--color-surface-hover); border-color: transparent; }
+/* Keep keyboard focus visible inside the scrolling candidate list. */
+.player-choice:focus-visible { outline-offset: -3px; }
+
+/* ---- Connected video ---- */
+.video-summary { display: flex; align-items: center; gap: var(--space-2); min-height: var(--row-height); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2); border-radius: var(--row-radius); background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-card); }
+.video-link { flex: 1 1 auto; display: flex; align-items: center; justify-content: flex-start; gap: var(--space-3); min-width: 0; min-height: var(--control-height); padding: var(--space-1); color: var(--color-text); text-align: left; font-size: var(--text-sm); font-weight: var(--weight-medium); border-radius: var(--radius-sm); }
+.video-link:hover:enabled { color: var(--color-accent); background: transparent; }
+.video-link-arrow { flex: none; width: var(--size-4); height: var(--size-4); fill: none; stroke: var(--color-text-muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.video-link:hover:enabled .video-link-arrow { stroke: var(--color-accent); }
+#player-description { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+output { flex: none; font-size: var(--text-sm); color: var(--color-text-muted); }
+
+/* ---- Lobby ---- */
+#create-feedback:empty, #join-feedback:empty { display: none; }
+
+/* ---- Room ---- */
+.session-heading { display: flex; gap: var(--space-2); align-items: center; }
+[data-state="reconnecting"] .status-dot, [data-state="buffering"] .status-dot, [data-state="blocked"] .status-dot, [data-state="missing"] .status-dot { background: var(--color-warning-border); }
+[data-state="inviting"] .status-dot, [data-state="connecting"] .status-dot, [data-state="aligning"] .status-dot { background: var(--color-border-strong); }
+.controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr); gap: var(--space-2); }
+.controls button { padding-inline: var(--space-1); font-variant-numeric: tabular-nums; }
+.video-actions { margin-top: auto; padding-top: var(--space-2); }
+#change-video { font-weight: var(--weight-medium); }
+
+/* ---- Onboarding ---- */
+.onboarding-top { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); margin-left: calc(-1 * var(--space-2)); }
+.stepper { display: flex; justify-content: center; gap: var(--space-2); flex: 1 1 auto; margin: 0; padding: 0; list-style: none; }
+.onboarding-top > .icon-button + .stepper { margin-right: var(--control-height); }
+.step-dot { width: var(--size-2); height: var(--size-2); border-radius: var(--radius-full); background: var(--color-border-strong); opacity: 0.45; transition: background-color var(--motion-base) var(--motion-ease), transform var(--motion-base) var(--motion-ease), opacity var(--motion-base) var(--motion-ease); }
+.step-dot[data-state="current"] { background: var(--color-accent); opacity: 1; transform: scale(1.25); }
+.step-dot[data-state="done"] { background: var(--color-accent); opacity: 0.55; }
+.onboarding-step { flex: 1 0 auto; }
+.onboarding-step.centered { justify-content: center; }
+.onboarding .badge { align-self: flex-start; }
+.onboarding .hint[data-tone="success"] { color: var(--color-success); }
+#onboarding-message { margin-top: auto; }
+
+/* ---- Update banner & errors ---- */
+#update-banner { flex: none; margin-bottom: var(--space-3); }
+#error-panel { flex: none; margin-bottom: var(--space-3); }
+#error { margin: 0; }
+
+/* ---- Settings ---- */
+#session-details .text-button { justify-content: flex-start; padding-inline: 0; }
+#server-feedback[data-error="true"] { color: var(--color-warning); }
+#server-feedback:empty { display: none; }
+.diagnostics-actions { display: grid; gap: var(--space-1); }
+.diagnostics-actions button { white-space: normal; }
+#diagnostics-feedback:empty { margin: 0; }
+#settings .app-footer { margin-top: auto; padding-top: var(--space-3); }

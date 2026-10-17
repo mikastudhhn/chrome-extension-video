@@ -1,0 +1,15 @@
+/* Styleguide page layout only. Everything shown comes from tokens.css and components.css. */
+html, body { width: auto; min-width: 0; height: auto; overflow: visible; display: block; }
+.guide { display: block; max-width: 960px; max-height: none; overflow: visible; margin: 0 auto; padding: var(--space-7) var(--space-6) var(--space-8); }
+.guide > .section + .section { margin-top: var(--space-7); padding-top: var(--space-7); }
+.guide-header { position: sticky; top: 0; background: var(--color-bg); z-index: 1; }
+.guide-theme { width: 160px; }
+.guide-theme label { margin-bottom: var(--space-1); }
+.guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5); align-items: start; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+.swatch { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-xs); color: var(--color-text-muted); }
+.swatch-chip { height: var(--size-9); border-radius: var(--radius-md); border: 1px solid var(--color-border); }
+.swatch code { color: var(--color-text); }
+.spaces { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-4); }
+.space { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--color-text-muted); }
+.space-bar { background: var(--color-accent-soft-hover); border-radius: var(--radius-sm); }

@@ -1,0 +1,34 @@
+/* Updates view (popup subpage and standalone tab). Structure comes from updates-view.js. */
+.updates-view { display: flex; flex-direction: column; gap: var(--space-3); }
+.updates-view h3 { font-size: var(--text-sm); }
+.updates-view #updates-installed { font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.updates-view #updates-message:empty { display: none; }
+.updates-view #updates-message, .updates-view #updates-update-status, .updates-view #updates-last-check { font-size: var(--text-sm); }
+.updates-view #updates-error { padding: var(--card-padding); border-radius: var(--card-radius); background: var(--color-warning-surface); color: var(--color-warning); font-size: var(--text-sm); }
+.updates-view #updates-release-panel { display: flex; flex-direction: column; gap: var(--space-3); }
+.updates-view #updates-target { flex: 1 1 auto; min-width: 0; padding-block: var(--space-1); font-size: var(--text-base); }
+.updates-view #updates-room-block, .updates-view #updates-recovery-help { padding: var(--card-padding); border-left: 3px solid var(--color-warning-border); border-radius: var(--card-radius); background: var(--color-warning-surface); color: var(--color-warning); font-size: var(--text-sm); }
+.updates-view .recovery-actions { display: grid; gap: var(--space-2); }
+.updates-view #updates-confirm { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--card-padding); border-left: 3px solid var(--color-warning-border); border-radius: var(--card-radius); background: var(--color-warning-surface); font-size: var(--text-sm); }
+.updates-view #updates-confirm[hidden] { display: none; }
+.updates-view #updates-confirm-details { white-space: pre-line; overflow-wrap: anywhere; }
+.updates-view #updates-confirm-details:empty { display: none; }
+.updates-view .confirm-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.updates-view .recovery-actions:empty, .updates-view .recovery-actions:not(:has(> :not([hidden]))) { display: none; }
+.updates-view .recovery-actions button { justify-content: flex-start; text-align: left; }
+.updates-view .local-updates { padding-top: var(--space-3); border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--space-2); }
+.updates-view details { margin-top: var(--space-1); }
+.updates-view details details { border-bottom: 0; }
+.updates-view #updates-access-status { display: block; font-size: var(--text-sm); font-weight: var(--weight-regular); color: var(--color-text-muted); overflow-wrap: anywhere; }
+.updates-view #updates-setup > .hint, .updates-view #updates-setup > label { margin-top: var(--space-1); }
+.updates-view #updates-setup input { margin-bottom: var(--space-2); }
+.updates-view #updates-setup > .primary { width: 100%; }
+.updates-view #updates-setup > .text-button { width: 100%; }
+.updates-view #updates-token-help p { margin-top: var(--space-2); }
+.updates-view .setting-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
+.updates-view .setting-row > div { min-width: 0; flex: 1 1 150px; } /* px-ok: wrap threshold */
+.updates-view .setting-row button { flex: none; }
+.updates-view #updates-folder-status { margin-top: var(--space-1); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.updates-view .preview-toggle { margin-top: var(--space-2); }
+.updates-view .advanced-actions { display: grid; justify-items: start; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--color-border); font-size: var(--text-sm); }
+.updates-view .advanced-actions button { text-align: left; }

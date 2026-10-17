@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Sync · Testplayer</title><link rel="stylesheet" href="style.css"></head>
+<body><main>
+  <header><span class="wordmark">Ⅱ &nbsp; VIDEO SYNC</span><span>LOKALER TESTPLAYER</span></header>
+  <div class="intro"><p class="eyebrow">EIN FILM. ZWEI ZEITLINIEN.</p><h1>Zusammen im<br>selben Moment.</h1><p>Öffne diesen Player in zwei Browserprofilen.<br>Verbinde beide über die Video Sync Extension.</p></div>
+  <section class="screen"><video id="video" controls preload="auto" playsinline muted src="scene-a.webm"></video><div class="caption"><span id="version">Version A · ohne Vorspann</span><output id="scene">Video wird geladen …</output></div></section>
+  <div class="workspace"><section><p class="eyebrow">01 · VERSION WÄHLEN</p><div class="buttons"><button id="version-a" class="selected">Version A</button><button id="version-b">Version B · +5 Sekunden</button></div><p>Beide Videos zeigen denselben Testfilm. Version B beginnt mit fünf zusätzlichen Sekunden. Für dieselbe Szene A auf 00:05 und B auf 00:10 stellen.</p><label for="file">Oder ein eigenes Video öffnen</label><input id="file" type="file" accept="video/*"></section><section><p class="eyebrow">02 · GEMEINSAM STARTEN</p><ol><li>In der Extension „Video verbinden“ wählen.</li><li>Raum erstellen und Code im zweiten Profil eingeben.</li><li>Dieselbe Szene einstellen und jeweils „Bereit“ bestätigen.</li><li>Play, Pause und Spulen in beiden Playern ausprobieren.</li></ol><p class="note">Der Raum überträgt ausschließlich Steuerungsdaten.</p></section></div>
+  <footer>Video Sync · MVP-Testumgebung · Kein Chat. Keine Untertitel.</footer>
+</main><script src="demo.js" type="module"></script></body></html>

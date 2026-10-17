@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Video Sync · Styleguide</title>
+  <script src="../extension/theme-init.js"></script>
+  <link rel="stylesheet" href="../extension/tokens.css">
+  <link rel="stylesheet" href="../extension/components.css">
+  <link rel="stylesheet" href="../extension/popup.css">
+  <link rel="stylesheet" href="styleguide.css">
+</head>
+<body>
+  <header class="app-header guide-header">
+    <div class="mark" aria-hidden="true">Ⅱ</div>
+    <div class="grow"><h1>Video Sync · Styleguide</h1><span class="channel-label">Komponentengalerie · tokens.css + components.css</span></div>
+    <div class="field guide-theme"><label for="guide-theme">Theme</label><select id="guide-theme"><option value="system">Wie System</option><option value="light">Hell</option><option value="dark">Dunkel</option></select></div>
+  </header>
+  <main class="guide">
+
+    <section class="section">
+      <h3 class="section-title">Farbrollen</h3>
+      <div class="swatches" id="swatches"></div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Typografie</h3>
+      <div class="card stack">
+        <h1>Überschrift 1 · Kopfzeile</h1>
+        <h2>Überschrift 2 · Bildschirmtitel</h2>
+        <h3>Überschrift 3 · Unterabschnitt</h3>
+        <p>Absatz. Gedämpfter Text für Erklärungen mit angenehmer Zeilenhöhe. Deine Videos bleiben bei dir, nur Steuerdaten laufen über den Server.</p>
+        <p class="hint">Hinweis. Kleine Ergänzung direkt bei einer Entscheidung.</p>
+        <p class="eyebrow">Eyebrow · Abschnittstitel</p>
+        <code>e5XYy6MncWuk</code>
+        <a href="#">Link zu Release Notes ↗</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Buttons</h3>
+      <div class="card guide-grid">
+        <div class="stack-tight"><span class="eyebrow">Primär</span><button class="primary">Raum erstellen</button><button class="primary" disabled>✓ Bestätigt</button></div>
+        <div class="stack-tight"><span class="eyebrow">Sekundär</span><button class="secondary full-width">Beitreten</button><button class="secondary full-width" disabled>Beitreten</button></div>
+        <div class="stack-tight"><span class="eyebrow">Text</span><button class="text-button full-width">Anderes Video verbinden</button><button class="text-button full-width" disabled>Verwerfen</button></div>
+        <div class="stack-tight"><span class="eyebrow">Gefährlich</span><button class="danger full-width">Raum verlassen</button><button class="danger full-width" disabled>Raum verlassen</button></div>
+        <div class="stack-tight"><span class="eyebrow">Icon · Kompakt</span><div class="cluster"><button class="icon-button" aria-label="Einstellungen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 3-.7 2.4-1.6.9-2.4-.6-2.5 4.3 1.8 1.8v1.8l-1.8 1.8 2.5 4.3 2.4-.6 1.6.9.7 2.4h5l.7-2.4 1.6-.9 2.4.6 2.5-4.3-1.8-1.8v-1.8l1.8-1.8-2.5-4.3-2.4.6-1.6-.9-.7-2.4Z"/><circle cx="12" cy="12.7" r="3.2"/></svg></button><a class="icon-button round" href="#" aria-label="Release-Seite öffnen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a><button class="secondary compact">Speichern</button><button class="text-button">Verwerfen</button></div></div>
+        <div class="stack-tight"><span class="eyebrow">Wiedergabe</span><div class="controls"><button class="secondary">−10 s</button><button class="primary">Pause</button><button class="secondary">+10 s</button></div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Felder</h3>
+      <div class="card guide-grid">
+        <div class="field"><label for="g-server">Verbindungsserver</label><input id="g-server" type="url" value="https://sync.example.org"><p class="hint">Für neue Räume.</p><div class="field-actions"><a class="icon-button round" href="#" aria-label="Release-Seite öffnen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a><button class="secondary compact">Speichern</button><button class="text-button">Verwerfen</button></div></div>
+        <div class="field"><label for="g-invalid">Ungültig</label><input id="g-invalid" type="url" value="nicht-eine-adresse" aria-invalid="true"><p class="hint" data-error="true">Bitte eine vollständige Adresse mit http:// oder https:// angeben.</p></div>
+        <div class="field"><label for="g-select">Erscheinungsbild</label><select id="g-select"><option>Wie System</option><option>Hell</option><option>Dunkel</option></select></div>
+        <div class="field"><label for="g-code" class="sr-only">Einladung</label><textarea id="g-code" rows="2" placeholder="Einladung oder Raumcode"></textarea></div>
+        <label class="checkbox"><input type="checkbox" checked> Preview-Nummer anzeigen</label>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Flächen &amp; Hinweise</h3>
+      <div class="guide-grid">
+        <div class="card stack-tight"><h3>Karte</h3><p>Weiße Fläche mit Rand für gruppierten Inhalt.</p></div>
+        <div class="card-muted stack-tight"><code id="room-code">e5XYy6MncWuk</code><p class="hint">Teile die vollständige Einladung.</p><button class="primary">Einladung kopieren</button></div>
+        <div class="callout stack-tight"><p>Weitere eingebettete Player benötigen Zugriff auf player.example.</p><button class="secondary full-width">Player erlauben &amp; verbinden</button></div>
+        <div class="action-error"><div><strong>Server nicht erreichbar</strong><p>Bitte Adresse prüfen oder später erneut versuchen.</p></div><button class="dismiss-error" aria-label="Schließen">×</button><button class="text-button">Serveradresse ändern</button></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Hero, Karten &amp; Zeilen</h3>
+      <div class="guide-grid">
+        <div class="card"><div class="hero"><div class="hero-art" aria-hidden="true">Ⅱ</div><h2>Video verbinden</h2><p>Öffne die Extension in deinem Video-Tab.</p></div></div>
+        <div class="card stack-tight">
+          <h3 class="card-title"><span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>Erweitert</h3>
+          <div class="list">
+            <button class="list-row"><span class="row-main">Updates<span class="row-sub">Zugang, Ordner, Wiederherstellung</span></span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+            <button class="list-row"><span class="row-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 6 10 6-10 6Z"/></svg></span><span class="row-main">Big Buck Bunny · youtube.com</span><span class="row-trailing">12:34</span></button>
+          </div>
+          <div class="control-row"><label for="g-row-select">Erscheinungsbild</label><select id="g-row-select"><option>Wie System</option><option>Hell</option><option>Dunkel</option></select></div>
+        </div>
+        <div class="stack-tight">
+          <span class="eyebrow">Zeilen auf der Seite</span>
+          <div class="control-row"><label for="g-page-select">Version</label><select id="g-page-select"><option>Stable</option><option>Experimental</option></select></div>
+          <div class="members"><span class="member" data-ready="true">Du · Verbunden</span><span class="member">Zweite Person · Noch nicht da</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Status</h3>
+      <div class="card stack">
+        <div class="session-heading"><span class="status-dot" aria-hidden="true"></span><h2>Wiedergabe</h2></div>
+        <div class="session-heading"><span class="status-dot" data-tone="attention" aria-hidden="true"></span><h2>Dein Video lädt nach</h2></div>
+        <div class="session-heading"><span class="status-dot" data-tone="muted" aria-hidden="true"></span><h2>Einladung teilen</h2></div>
+        <div class="cluster"><span class="badge">Stable</span><span class="badge" data-tone="success">✓ Bereit</span><span class="badge" data-tone="attention">Unterbrochen</span></div>
+              </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Disclosure &amp; Gliederung</h3>
+      <div class="card">
+        <details><summary>Synchronisationsdiagnose</summary><div class="stack-tight"><p class="hint">Nur lokal, höchstens 30 Minuten und 200 Ereignisse.</p><button class="secondary full-width">Diagnose exportieren</button></div></details>
+        <details><summary>Weitere Optionen</summary><p class="hint">Eingeklappt, bis jemand sie braucht.</p></details>
+        <div class="separator"><span>oder</span></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Abstände &amp; Radien</h3>
+      <div class="card"><div class="spaces" id="spaces"></div></div>
+    </section>
+
+  </main>
+  <script src="styleguide.js"></script>
+</body>
+</html>

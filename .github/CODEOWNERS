@@ -1,0 +1,24 @@
+# Owner review for CI, release publishing and the update trust chain.
+# Effective once "Require review from Code Owners" is enabled for main.
+/.github/ @mikastudhhn
+
+# Trust root and signature verification
+/extension/release-key.js @mikastudhhn
+/extension/update-signature.js @mikastudhhn
+
+# Updater: discovery, download, review, installation and recovery
+/extension/github-updates.js @mikastudhhn
+/extension/package-files.js @mikastudhhn
+/extension/background-updates.js @mikastudhhn
+/extension/update-*.js @mikastudhhn
+/extension/updates*.js @mikastudhhn
+
+# Release packaging, signing, publishing and Stable promotion
+/scripts/package-extension.js @mikastudhhn
+/scripts/package-bundle.js @mikastudhhn
+/scripts/publish-release.js @mikastudhhn
+/scripts/promote.js @mikastudhhn
+/scripts/promotion-policy.js @mikastudhhn
+/scripts/github-releases.js @mikastudhhn
+/scripts/release-signing.js @mikastudhhn
+/scripts/release-sign.js @mikastudhhn
