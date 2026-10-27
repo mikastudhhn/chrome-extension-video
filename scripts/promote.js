@@ -8,6 +8,7 @@ import { validatePromotion } from './promotion-policy.js';
 import { validateBundle } from '../extension/github-updates.js';
 import { candidatePattern } from './release-refs.js';
 import { loadSigningKey, releaseSignature, verifySignatureFile } from './release-signing.js';
+import { verifyStorePackage } from './store-package.js';
 
 const [channel, candidateOption, candidate, testedOption, tested] = process.argv.slice(2);
 if (channel !== 'stable' || candidateOption !== '--candidate' || !candidatePattern.test(candidate || '') || testedOption !== '--tested' || !/^[a-f0-9]{40}$/.test(tested || '')) throw new Error('npm run promote -- stable --candidate vX.Y.Z-preview.N --tested <full accepted commit>');
@@ -35,8 +36,15 @@ try {
   const signature = await releaseSignature({ release: getRelease(tag), updatePath: update, tag, channel: 'stable', directory, privateKey, download: downloadAsset });
   const checksum = `${archive}.sha256`;
   await writeFile(checksum, `${createHash('sha256').update(await readFile(archive)).digest('hex')}  video-sync-${bundle.version}.zip\n`);
+  // The accepted candidate's Chrome Web Store ZIP is released unchanged next to it.
+  // Candidates published before the store profile existed have none.
+  const storeName = `video-sync-${bundle.version}-store.zip`, store = [];
+  if (release.assets.some(asset => asset.name === storeName)) {
+    store.push(await downloadAsset(release, storeName, directory), await downloadAsset(release, `${storeName}.sha256`, directory));
+    await verifyStorePackage(store[0], tested);
+  }
   const notes = join(directory, 'notes.md');
-  await writeFile(notes, `Stable-Freigabe von ${candidate}. Praktisch abgenommener Commit: ${tested}.\n\nZIP und Update-Paket sind unveränderte Dateien des geprüften Stable-Profils dieses Kandidaten. \`update.json.sig\` signiert das Update-Paket als freigegebenes Stable-Release.\n`);
-  const result = await publishRelease({ tag, commit: tested, title: `Stable ${tag}`, notes, files: [archive, checksum, update, signature], prerelease: false });
+  await writeFile(notes, `Stable-Freigabe von ${candidate}. Praktisch abgenommener Commit: ${tested}.\n\nZIP und Update-Paket sind unveränderte Dateien des geprüften Stable-Profils dieses Kandidaten; ein vorhandenes \`-store.zip\` ist das unveränderte Chrome-Web-Store-Paket desselben Kandidaten. \`update.json.sig\` signiert das Update-Paket als freigegebenes Stable-Release.\n`);
+  const result = await publishRelease({ tag, commit: tested, title: `Stable ${tag}`, notes, files: [archive, checksum, update, signature, ...store], prerelease: false });
   console.log(result.html_url);
 } finally { await rm(directory, { recursive: true, force: true }); }

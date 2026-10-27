@@ -33,7 +33,7 @@ function harness({ configure = () => {}, runtimeReply, features = {}, pending = 
     recoveryStatus: readRecovery || (async () => ({ pending, blocked, canRestore: pending && !blocked, message: pending ? 'Recovery required' : '' })),
     stored: async () => ({}),
     updateStatus: async () => updates, checkUpdates: async () => ({}), configureUpdates: async () => {},
-    UPDATE_INTERVAL_MINUTES, createDevelopmentSession: () => null, featuresFor: () => features,
+    UPDATE_INTERVAL_MINUTES, createDevelopmentSession: () => null, featuresFor: () => features, STORE: false,
     runUpdate: async options => { runs++; return run(options); },
     fetch: async url => {
       assert.ok(url.startsWith('chrome-extension://test/'), 'normal usage must not fetch GitHub');

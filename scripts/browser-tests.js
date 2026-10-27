@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { createServer } from '../server/index.js';
 import { runProcess, runSerial, createSuiteTemporaryDirectory } from './browser-test-process.js';
-import { loadPackage, fileHashes, sha256 } from './browser-test-package.js';
+import { loadPackage, loadStorePackage, fileHashes, sha256 } from './browser-test-package.js';
 import { browserMatrix, browserDiagnostics, browserGroups } from './browser-test-matrix.js';
 
 const root = resolve('.');
@@ -61,7 +61,7 @@ try {
   env.RELEASE_TAG ||= `v${manifest.version}-preview.${env.BUILD_NUMBER}`;
   const version = process.env.PACKAGE_VERSION || `${manifest.version}.${env.BUILD_NUMBER}`;
   if (!skipBuild) {
-    for (const channel of ['experimental', 'stable']) {
+    for (const channel of ['experimental', 'stable', 'store']) {
       const build = await runProcess(process.execPath, ['scripts/package-extension.js', process.env.VIDEO_SYNC_SERVER || 'http://localhost:8787'],
         { cwd: root, env: { ...env, PACKAGE_PROFILE: channel }, directory: join(output, `build-${channel}`), signal: controller.signal });
       if (build.code !== 0 || build.reason) throw new Error(`Package build failed: ${channel}; see ${output}`);
@@ -70,6 +70,7 @@ try {
   const packages = {};
   for (const channel of ['stable', 'experimental']) packages[channel] = await loadPackage({ root, channel, version,
     commit: report.commit, destination: join(temporary, channel) });
+  packages.store = await loadStorePackage({ root, version, commit: report.commit, destination: join(temporary, 'store') });
   report.packages = packages;
   const matrix = selected.length ? [...browserMatrix(packages), ...browserDiagnostics(packages)] : browserMatrix(packages);
   for (const name of selected) assert.ok(matrix.some(suite => suite.name === name), `Unknown suite: ${name}`);
@@ -102,7 +103,7 @@ try {
   for (const [channel, pkg] of Object.entries(packages)) {
     assert.deepEqual(await fileHashes(pkg.extension), pkg.hashes, `${channel}: browser tests must not modify candidate files`);
     assert.equal(sha256(await readFile(pkg.archive)), pkg.sha256, `${channel}: archive unchanged`);
-    assert.equal(sha256(await readFile(pkg.updatePath)), pkg.updateSha256, `${channel}: update unchanged`);
+    if (pkg.updatePath) assert.equal(sha256(await readFile(pkg.updatePath)), pkg.updateSha256, `${channel}: update unchanged`);
   }
   assert.deepEqual(await fileHashes(join(root, 'scripts')), report.testSourceHashes, 'Test scripts changed during the run');
   assert.equal(git('rev-parse', 'HEAD'), report.commit, 'Commit changed during the run');

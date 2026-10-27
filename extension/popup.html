@@ -88,17 +88,17 @@
       <div class="onboarding-step stack" data-step="appearance" hidden>
         <div class="stack-tight">
           <h2>Darstellung</h2>
-          <p>Beides lässt sich später in den Einstellungen ändern.</p>
+          <p>Lässt sich später in den Einstellungen ändern.</p>
         </div>
         <div class="control-row">
           <label for="onboarding-theme">Erscheinungsbild</label>
           <select id="onboarding-theme"><option value="system">Wie System</option><option value="light">Hell</option><option value="dark">Dunkel</option></select>
         </div>
-        <div class="control-row">
+        <div id="onboarding-channel-row" class="control-row">
           <label for="onboarding-channel">Version</label>
           <select id="onboarding-channel"><option value="stable">Stable</option><option value="experimental">Experimental</option></select>
         </div>
-        <p class="hint">Stable ist die freigegebene Version. Experimental enthält neue Funktionen früher.</p>
+        <p id="onboarding-channel-hint" class="hint">Stable ist die freigegebene Version. Experimental enthält neue Funktionen früher.</p>
       </div>
 
       <div class="onboarding-step stack centered" data-step="done" hidden>
@@ -214,7 +214,7 @@
           <label for="theme">Erscheinungsbild</label>
           <select id="theme"><option value="system">Wie System</option><option value="light">Hell</option><option value="dark">Dunkel</option></select>
         </div>
-        <div class="control-row">
+        <div id="release-channel-row" class="control-row">
           <label for="release-channel">Version</label>
           <select id="release-channel" aria-describedby="channel-hint"><option value="stable">Stable</option><option value="experimental">Experimental</option></select>
         </div>

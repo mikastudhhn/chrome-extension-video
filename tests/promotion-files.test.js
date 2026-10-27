@@ -15,8 +15,8 @@ test('Stable promotion copies accepted bytes despite changed sources; corrupted 
   const root = await mkdtemp(join(tmpdir(), 'video-sync-promote-test-'));
   try {
     await mkdir(join(root, 'scripts')); await mkdir(join(root, 'extension')); await mkdir(join(root, 'bin'));
-    for (const file of ['promote.js', 'promotion-policy.js', 'github-releases.js', 'release-refs.js', 'release-signing.js']) await cp(resolve('scripts', file), join(root, 'scripts', file));
-    for (const file of ['github-updates.js', 'package-files.js', 'update-signature.js']) await cp(`extension/${file}`, join(root, 'extension', file));
+    for (const file of ['promote.js', 'promotion-policy.js', 'github-releases.js', 'release-refs.js', 'release-signing.js', 'store-package.js']) await cp(resolve('scripts', file), join(root, 'scripts', file));
+    for (const file of ['github-updates.js', 'package-files.js', 'update-signature.js', 'features.js']) await cp(`extension/${file}`, join(root, 'extension', file));
     const key = testReleaseKey();
     await writeFile(join(root, 'extension/release-key.js'), releaseKeyModule(key.publicKey));
     await writeFile(join(root, 'package.json'), '{"type":"module"}');

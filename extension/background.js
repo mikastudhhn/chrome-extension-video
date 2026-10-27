@@ -7,6 +7,7 @@ import { stored } from './update-storage.js';
 import { recovery, updateRecovery, completeUpdate } from './background-updates.js';
 import { featuresFor } from './features.js';
 import { createDevelopmentSession } from './development.js';
+import { STORE } from './distribution.js';
 
 let uiQueue = Promise.resolve();
 let uiGeneration = 0;
@@ -90,6 +91,7 @@ async function handle(message, sender, guard = () => {}) {
     // Opening the popup is an automatic trigger: debounced like the alarm.
     if (message.action === 'update-check-opened') return checkUpdates(channel, build);
     if (['update-install', 'update-restore', 'update-verify-repair'].includes(message.action)) {
+      if (STORE) throw new Error('Diese Installation aktualisiert Chrome über den Chrome Web Store.');
       if (![chrome.runtime.getURL('popup.html'), chrome.runtime.getURL('updates.html')].includes(sender.url)) {
         throw new Error('Updates nur in den Einstellungen starten.');
       }
@@ -130,6 +132,7 @@ async function handle(message, sender, guard = () => {}) {
       return { ok: true };
     }
     if (message.action === 'set-channel') {
+      if (STORE) throw new Error('Diese Installation aktualisiert Chrome über den Chrome Web Store.');
       // The channel only selects the release stream; room and video stay connected.
       const devState = dev ? await dev.refresh() : null;
       validateChannelSwitch(message.channel, build, devState, channel);
@@ -203,7 +206,7 @@ async function updateViewStatus(build, dev, updating, sessionStatus) {
     room = status.room; lifecycle = status.lifecycle;
     roomStatusUnavailable = !!status.roomStatusUnavailable;
   }
-  return { room, lifecycle, roomStatusUnavailable, channel, channels: channelOptions(build, dev?.status(), channel), development: dev?.status(),
+  return { room, lifecycle, roomStatusUnavailable, channel, channels: STORE ? [] : channelOptions(build, dev?.status(), channel), store: STORE, development: dev?.status(),
     localBuild: build.local, sourceBuild: !!build.source, recovery,
     showExperimentalPreview: (await chrome.storage.local.get('showExperimentalPreview')).showExperimentalPreview === true,
     experimentalTag: build.candidateTag || null, engineVersion: chrome.runtime.getManifest().version,
@@ -285,17 +288,21 @@ chrome.webNavigation.onCommitted.addListener(details => {
 async function scheduledUpdateCheck() {
   await checkUpdates(await selectedChannel(), await buildInfo);
 }
-chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === 'check-github-updates') void scheduledUpdateCheck(); });
 // Public releases need no token, so every installation checks on this cadence.
-chrome.runtime.onStartup.addListener(async () => {
-  await chrome.alarms.create('check-github-updates', { periodInMinutes: UPDATE_INTERVAL_MINUTES });
-  void scheduledUpdateCheck();
-});
+// Store packages have neither the updater nor the alarms permission.
+if (!STORE) {
+  chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === 'check-github-updates') void scheduledUpdateCheck(); });
+  chrome.runtime.onStartup.addListener(async () => {
+    await chrome.alarms.create('check-github-updates', { periodInMinutes: UPDATE_INTERVAL_MINUTES });
+    void scheduledUpdateCheck();
+  });
+}
 chrome.runtime.onInstalled.addListener(async details => {
   // A missing record means first run. Updates of existing installations skip the steps.
   if (details.reason === 'update' && !(await chrome.storage.local.get('onboarding')).onboarding) {
     await chrome.storage.local.set({ onboarding: { version: 1, step: 0, completedAt: Date.now(), skipped: true } });
   }
+  if (STORE) return;
   await updateRecovery;
   const { updateCompleted } = await chrome.storage.local.get('updateCompleted');
   await chrome.alarms.create('check-github-updates', { periodInMinutes: UPDATE_INTERVAL_MINUTES });

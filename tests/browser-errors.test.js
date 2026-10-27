@@ -25,7 +25,7 @@ async function fixture(t) {
 }
 
 test('error matrix covers both candidate packages with their own channel', () => {
-  const suites = browserMatrix({ stable: { extension: '/candidate-stable' }, experimental: { extension: '/candidate-experimental' } })
+  const suites = browserMatrix({ stable: { extension: '/candidate-stable' }, experimental: { extension: '/candidate-experimental' }, store: { extension: '/candidate-store' } })
     .filter(suite => suite.script === 'e2e-errors.js');
   assert.deepEqual(suites.map(suite => [suite.name, suite.env.TEST_EXTENSION, errorTestChannels(suite.env.TEST_CHANNEL)]), [
     ['errors-stable-candidate', '/candidate-stable', ['stable']],

@@ -42,6 +42,7 @@ async function popupFixture(reply) {
     ServerSetting, renderServerSetting: setting => renderServerSetting(setting, document),
     renderPopup: ({ current }) => snapshots.push(current),
     mountDiagnostics: (root, options) => mountDiagnostics(root, { ...options, download: text => downloads.push(JSON.parse(text)) }),
+    STORE: false,
     mountOnboarding: () => ({ active: false, step: 0, init: async () => false, open: async () => {}, update() {}, refreshPermission: async () => {} })
   });
   return { get, downloads, messages, snapshots, state,

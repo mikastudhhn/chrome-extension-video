@@ -9,6 +9,7 @@ import { DEFAULT_SERVER } from './config.js';
 import { createInvitation, parseInvitation, serverOrigin } from './invitation.js';
 import { describeRoomError, readableError } from './errors.js';
 import { mountOnboarding } from './onboarding.js';
+import { STORE } from './distribution.js';
 
 const $ = id => document.getElementById(id);
 const diagnosticsView = mountDiagnostics($('diagnostics-panel'), { request: diagnosticRequest });
@@ -445,7 +446,8 @@ observeStatus(feed);
 await feed.refresh();
 // Opening the popup also looks for updates; the background debounces this
 // check. Installing still requires a click. Refresh only if the banner changes.
-void chrome.runtime.sendMessage({ target: 'background', type: 'ui', action: 'update-check-opened' })
+// Chrome updates Web Store installations itself.
+if (!STORE) void chrome.runtime.sendMessage({ target: 'background', type: 'ui', action: 'update-check-opened' })
   .then(response => response?.ok && !!response.result?.available !== !!current?.updates?.available ? feed.refresh() : null).catch(() => {});
 await refreshPermissions();
 if (allSitesAllowed && !onboarding.active && !current?.local && !current?.recovery?.pending) {

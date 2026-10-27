@@ -68,7 +68,7 @@ test('CI verifies stacked PR bases and only releases tested main artifacts outsi
 
 test('required discovery suites select both extracted candidate profiles', () => {
   const packages = { stable: { extension: '/verified/stable-candidate/extension' },
-    experimental: { extension: '/verified/experimental-candidate/extension' } };
+    experimental: { extension: '/verified/experimental-candidate/extension' }, store: { extension: '/verified/store' } };
   const discovery = browserMatrix(packages).filter(suite => suite.script === 'e2e-player-discovery.js');
   assert.equal(discovery.length, 2);
   for (const channel of ['stable', 'experimental']) {
@@ -98,7 +98,7 @@ test('browser identity evidence records every loaded installation with its own m
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 test('delayed-start regression runs both current candidate engines in the required matrix', () => {
-  const packages = { stable: { extension: '/verified/stable' }, experimental: { extension: '/verified/experimental' } };
+  const packages = { stable: { extension: '/verified/stable' }, experimental: { extension: '/verified/experimental' }, store: { extension: '/verified/store' } };
   const suites = browserMatrix(packages).filter(suite => suite.name.startsWith('core-delayed-start-'));
   assert.equal(suites.length, 2);
   for (const channel of ['stable', 'experimental']) {

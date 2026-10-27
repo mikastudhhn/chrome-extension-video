@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { browserMatrix } from '../scripts/browser-test-matrix.js';
 
 test('common starter requires diagnosis on both candidate packages', async () => {
-  const suites = browserMatrix({ stable: { extension: '/candidate-stable' }, experimental: { extension: '/candidate-experimental' } });
+  const suites = browserMatrix({ stable: { extension: '/candidate-stable' }, experimental: { extension: '/candidate-experimental' }, store: { extension: '/candidate-store' } });
   const diagnosis = suites.filter(suite => suite.script === 'e2e-diagnostics.js');
   assert.deepEqual(diagnosis.map(suite => [suite.name, suite.env.TEST_EXTENSION, suite.env.TEST_CHANNEL, suite.env.TEST_EXPECT_DIAGNOSTICS]), [
     ['diagnostics-stable-candidate', '/candidate-stable', 'stable', '1'],

@@ -4,7 +4,7 @@
 export const browserGroups = ['core-candidates', 'core-delayed', 'ui', 'updates'];
 
 export function browserMatrix(packages) {
-  const stable = packages.stable.extension, experimental = packages.experimental.extension;
+  const stable = packages.stable.extension, experimental = packages.experimental.extension, store = packages.store.extension;
   const suite = (group, name, script, extension, channel, extra = {}) => ({ name, group, script,
     env: { TEST_EXTENSION: extension, TEST_CHANNEL: channel, ...extra } });
   return [
@@ -27,6 +27,7 @@ export function browserMatrix(packages) {
     suite('updates', 'update-recovery-stable', 'e2e-update-recovery.js', stable, 'stable'),
     suite('updates', 'update-recovery-experimental', 'e2e-update-recovery.js', experimental, 'experimental'),
     suite('ui', 'onboarding', 'e2e-onboarding.js', experimental, '', { TEST_ONBOARDING: '1' }),
+    suite('ui', 'store-package', 'e2e-store.js', store, '', { TEST_ONBOARDING: '1' }),
     suite('ui', 'channels-stable-package', 'e2e-channels.js', stable, ''),
     suite('ui', 'channels-experimental-package', 'e2e-channels.js', experimental, ''),
     suite('ui', 'errors-stable-candidate', 'e2e-errors.js', stable, 'stable'),

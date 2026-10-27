@@ -1,11 +1,14 @@
 import { serverOrigin } from './invitation.js';
 import { GITHUB_ORIGINS } from './github-updates.js';
+import { STORE } from './distribution.js';
 
 // Step-by-step first run inside the popup. Every step is resumable: the
 // native permission dialog closes the popup, so progress is stored before
 // each request and the step re-checks its own state when the popup reopens.
 export const ONBOARDING_STEPS = ['welcome', 'permission', 'server', 'updates', 'appearance', 'done'];
 export const ONBOARDING_VERSION = 1;
+// Chrome updates Web Store installations; there is no GitHub step or release stream.
+export const onboardingSteps = (store = STORE) => store ? ONBOARDING_STEPS.filter(step => step !== 'updates') : ONBOARDING_STEPS;
 const ALL_SITES = { origins: ['https://*/*', 'http://*/*'] };
 
 export function onboardingPending(stored) {
@@ -29,8 +32,9 @@ export async function checkServerHealth(origin, fetchImpl = fetch, timeoutMs = 4
 export function mountOnboarding(root, {
   storage = chrome.storage.local, permissions = chrome.permissions, request, serverSetting, setTheme, setChannel,
   channels = () => [{ value: 'stable', label: 'Stable' }, { value: 'experimental', label: 'Experimental' }],
-  onChange = () => {}, fetchImpl = fetch
+  onChange = () => {}, fetchImpl = fetch, store = STORE
 }) {
+  const steps = onboardingSteps(store);
   // Step panels live in `root`; the step buttons sit in the shared action bar below <main>.
   const $ = id => root.ownerDocument.getElementById(`onboarding-${id}`);
   const text = (id, value) => { const node = $(id); if (node && node.textContent !== value) node.textContent = value; };
@@ -45,17 +49,19 @@ export function mountOnboarding(root, {
   async function load() {
     const { onboarding } = await storage.get('onboarding');
     if (onboarding && typeof onboarding === 'object') state = { ...state, ...onboarding };
-    if (!Number.isInteger(state.step) || state.step < 0 || state.step >= ONBOARDING_STEPS.length) state.step = 0;
+    if (!Number.isInteger(state.step) || state.step < 0 || state.step >= steps.length) state.step = 0;
   }
   async function refreshPermission() {
-    [allSites, githubAllowed] = await Promise.all([permissions.contains(ALL_SITES), permissions.contains(GITHUB_ORIGINS)]);
+    [allSites, githubAllowed] = await Promise.all([permissions.contains(ALL_SITES), !store && permissions.contains(GITHUB_ORIGINS)]);
   }
 
-  function stepName() { return ONBOARDING_STEPS[state.step]; }
+  function stepName() { return steps[state.step]; }
 
+  // Steps are addressed by name; the stored index refers to this package's list.
   async function go(step) {
     message = ''; serverCheck = null;
-    await persist({ step: Math.max(0, Math.min(ONBOARDING_STEPS.length - 1, step)) });
+    const index = typeof step === 'string' ? steps.indexOf(step) : step;
+    await persist({ step: Math.max(0, Math.min(steps.length - 1, index)) });
     if (['permission', 'updates'].includes(stepName())) await refreshPermission();
     render();
     focusStep();
@@ -84,7 +90,7 @@ export function mountOnboarding(root, {
   }
 
   // ---- step actions ----
-  $('start').onclick = () => go(1);
+  $('start').onclick = () => go('permission');
   $('later').onclick = () => finish(true);
   $('back').onclick = () => go(state.step - 1);
   $('allow').onclick = () => {
@@ -94,11 +100,11 @@ export function mountOnboarding(root, {
     guarded(async () => {
       if (!await permission) throw new Error('Die Freigabe wurde nicht erteilt. Du kannst sie jederzeit hier oder beim Verbinden nachholen.');
       await refreshPermission();
-      await go(2);
+      await go('server');
     });
   };
-  $('permission-next').onclick = () => go(2);
-  $('permission-skip').onclick = () => go(2);
+  $('permission-next').onclick = () => go('server');
+  $('permission-skip').onclick = () => go('server');
   $('server').addEventListener('input', () => { serverCheck = null; message = ''; render(); });
   $('server-form').addEventListener('submit', event => {
     event.preventDefault();
@@ -112,13 +118,13 @@ export function mountOnboarding(root, {
       serverCheck = await checkServerHealth(origin, fetchImpl);
       if (!serverCheck.ok) { message = serverCheck.message; return; }
       if (!await serverSetting.save(origin)) throw new Error(serverSetting.error);
-      await go(3);
+      await go(steps[steps.indexOf('server') + 1]);
     });
   });
   $('server-anyway').onclick = () => guarded(async () => {
     const origin = serverOrigin($('server').value);
     if (!await serverSetting.save(origin)) throw new Error(serverSetting.error);
-    await go(3);
+    await go(steps[steps.indexOf('server') + 1]);
   });
   $('token-form').addEventListener('submit', event => {
     event.preventDefault();
@@ -132,7 +138,7 @@ export function mountOnboarding(root, {
       await request('update-configure', { token });
       $('token').value = '';
       hasToken = true;
-      await go(4);
+      await go('appearance');
     });
   });
   // The token stays optional: public releases are checked without one. The
@@ -144,15 +150,15 @@ export function mountOnboarding(root, {
     guarded(async () => {
       if (!await permission) throw new Error('Der Zugriff wurde nicht erteilt. Chrome fragt sonst beim ersten Update erneut.');
       githubAllowed = true;
-      await go(4);
+      await go('appearance');
     });
   };
   $('token').addEventListener('input', () => { message = ''; render(); });
-  $('updates-skip').onclick = () => go(4);
-  $('updates-next').onclick = () => go(4);
+  $('updates-skip').onclick = () => go('appearance');
+  $('updates-next').onclick = () => go('appearance');
   $('theme').addEventListener('change', event => setTheme(event.target.value));
   $('channel').addEventListener('change', event => { const channel = event.target.value; guarded(() => setChannel(channel)); });
-  $('appearance-next').onclick = () => go(5);
+  $('appearance-next').onclick = () => go('done');
   $('finish').onclick = () => finish(false);
 
   function render() {
@@ -163,9 +169,10 @@ export function mountOnboarding(root, {
     root.querySelectorAll('[data-step]').forEach(panel => { panel.hidden = panel.dataset.step !== step; });
     root.ownerDocument.querySelectorAll('[data-step-action]').forEach(button => { button.hidden = button.dataset.stepAction !== step; });
     $('stepper').querySelectorAll('.step-dot').forEach((dot, index) => {
+      dot.hidden = index >= steps.length;
       dot.dataset.state = index < state.step ? 'done' : index === state.step ? 'current' : 'todo';
     });
-    $('stepper').setAttribute('aria-label', `Schritt ${state.step + 1} von ${ONBOARDING_STEPS.length}`);
+    $('stepper').setAttribute('aria-label', `Schritt ${state.step + 1} von ${steps.length}`);
     $('back').hidden = state.step === 0 || step === 'done';
     // permission
     $('allow').hidden = step !== 'permission' || allSites;
@@ -201,6 +208,8 @@ export function mountOnboarding(root, {
     }
     if (current?.channel && !busy) $('channel').value = current.channel;
     $('channel').disabled = busy;
+    $('channel-row').hidden = store;
+    $('channel-hint').hidden = store;
     // message
     text('message', message);
     $('message').hidden = !message;
