@@ -3,11 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 process.env.TEST_ONBOARDING = '1';
 const { chromium, evidence } = await import('./browser-test-context.js');
 const base = process.env.TEST_SERVER || 'http://127.0.0.1:8787';
 const extension = resolve(process.env.TEST_EXTENSION || 'extension');
+// Candidate packages freeze the release server (VIDEO_SYNC_SERVER) as their default.
+const { DEFAULT_SERVER } = await import(pathToFileURL(join(extension, 'config.js')).href);
 const passed = [], errors = [];
 let context, profile;
 await mkdir(evidence, { recursive: true });
@@ -70,7 +73,7 @@ try {
   });
 
   await record('the server step checks reachability before saving and offers to keep an unreachable address', async () => {
-    assert.equal(await popup.locator('#onboarding-server').inputValue(), 'http://localhost:8787');
+    assert.equal(await popup.locator('#onboarding-server').inputValue(), DEFAULT_SERVER);
     await popup.locator('#onboarding-server').fill('http://127.0.0.1:1');
     await popup.locator('#onboarding-server-check').click();
     await until('unreachable message', () => popup.locator('#onboarding-message').isVisible());
