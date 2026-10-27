@@ -1,5 +1,6 @@
 {
-	email {$ACME_EMAIL}
+	# No ACME contact address: Let's Encrypt sends no expiry mails any more and
+	# Caddy renews on its own. Add `email you@example.com` here if wanted.
 	servers {
 		# Slow clients cannot hold connections open while sending headers or
 		# bodies. No write timeout: long polls answer after up to 20 seconds.

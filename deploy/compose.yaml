@@ -24,7 +24,6 @@ services:
     restart: unless-stopped
     environment:
       PUBLIC_ADDRESS: ${PUBLIC_ADDRESS:?Set PUBLIC_ADDRESS in deploy/.env}
-      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env}
     ports:
       - "80:80"
       - "443:443"
