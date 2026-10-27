@@ -1,4 +1,7 @@
 {
+	# Browsers send no SNI for IP addresses (RFC 6066). Without a default, Caddy
+	# cannot pick the certificate and every IP-only TLS handshake fails.
+	default_sni {$PUBLIC_ADDRESS}
 	# No ACME contact address: Let's Encrypt sends no expiry mails any more and
 	# Caddy renews on its own. Add `email you@example.com` here if wanted.
 	servers {

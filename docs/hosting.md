@@ -14,7 +14,7 @@ Kostenlose Angebote mit Schlafmodus (Render, Fly.io) oder rückforderbaren Insta
 
 ## HTTPS ohne Domain
 
-Die Extension akzeptiert außer `localhost` nur HTTPS-Server. Eine Domain ist dafür nicht nötig: Let's Encrypt stellt seit Januar 2026 öffentlich vertrauenswürdige Zertifikate für IP-Adressen aus, ausschließlich mit dem Profil `shortlived` (160 Stunden). `deploy/Caddyfile` setzt dafür ausdrücklich den ACME-Aussteller; ohne ihn würde Caddy IP-Adressen ein Zertifikat seiner internen CA geben, dem Browser nicht vertrauen. Caddy erneuert das Zertifikat automatisch lange vor Ablauf. Ein mehrtägiger Ausfall von Let's Encrypt kann es trotzdem ablaufen lassen. Nur IPv4 verwenden; IPv6-Zertifikate funktionieren in Caddy noch nicht zuverlässig. Dieselbe Konfiguration funktioniert auch mit einer Domain. Quellen: [Let's Encrypt: IP-Zertifikate](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability.html), [Caddy tls-Direktive](https://caddyserver.com/docs/caddyfile/directives/tls).
+Die Extension akzeptiert außer `localhost` nur HTTPS-Server. Eine Domain ist dafür nicht nötig: Let's Encrypt stellt seit Januar 2026 öffentlich vertrauenswürdige Zertifikate für IP-Adressen aus, ausschließlich mit dem Profil `shortlived` (160 Stunden). `deploy/Caddyfile` setzt dafür ausdrücklich den ACME-Aussteller; ohne ihn würde Caddy IP-Adressen ein Zertifikat seiner internen CA geben, dem Browser nicht vertrauen. Browser senden für IP-Adressen keinen Servernamen (SNI); `default_sni` im Caddyfile wählt deshalb das IP-Zertifikat auch ohne SNI, sonst scheitert jeder TLS-Handshake. Caddy erneuert das Zertifikat automatisch lange vor Ablauf. Ein mehrtägiger Ausfall von Let's Encrypt kann es trotzdem ablaufen lassen. Nur IPv4 verwenden; IPv6-Zertifikate funktionieren in Caddy noch nicht zuverlässig. Dieselbe Konfiguration funktioniert auch mit einer Domain. Quellen: [Let's Encrypt: IP-Zertifikate](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability.html), [Caddy tls-Direktive](https://caddyserver.com/docs/caddyfile/directives/tls).
 
 Die IP-Adresse bleibt für die Vertragsdauer fest. Bei einem Serverumzug ändert sich die Serveradresse: Einladungen enthalten sie, die Voreinstellung im Paket muss neu gebaut werden.
 
@@ -28,9 +28,9 @@ Bei einer Unterbrechung pausiert die Wiedergabe. Der Raum bleibt bei fehlender A
 
 ## Bereitstellen
 
-Die Dateien `Dockerfile`, `deploy/compose.yaml`, `deploy/Caddyfile` und `deploy/.env.example` liegen fertig im Projekt. Docker Engine mit Compose-Plugin muss auf dem Server installiert sein ([offizielle Ubuntu-Anleitung](https://docs.docker.com/engine/install/ubuntu/)).
+Die Dateien `Dockerfile`, `deploy/compose.yaml`, `deploy/Caddyfile` und `deploy/.env.example` liegen fertig im Projekt. Docker Engine mit Compose-Plugin muss auf dem Server installiert sein ([Ubuntu](https://docs.docker.com/engine/install/ubuntu/), [Debian](https://docs.docker.com/engine/install/debian/)).
 
-1. VPS mit Ubuntu 24.04 bestellen; öffentliche IPv4 beibehalten. Anmeldung nur per SSH-Schlüssel, Passwortanmeldung abschalten.
+1. VPS mit Ubuntu 24.04 oder Debian 13 bestellen (netcup liefert das bestellte Image; der laufende Server nutzt Debian 13); öffentliche IPv4 beibehalten. Anmeldung nur per SSH-Schlüssel, Passwortanmeldung abschalten.
 2. Firewall auf dem Server: TCP 80 und 443 freigeben, optional UDP 443 für HTTP/3. Port 80 wird für die Zertifikatsprüfung gebraucht. SSH 22 möglichst eingeschränkt. Port 8787 wird nicht öffentlich freigegeben.
 3. Projektdateien auf den Server kopieren. Im Projektordner:
 
@@ -74,4 +74,16 @@ Der Bericht `test-results/soak.json` enthält Anzahl der Roundtrips, Median/p95/
 
 Anschließend beide echten Rechner mindestens vier Stunden gemeinsam verwenden. Dabei geschlossenes Popup, 10–30 Sekunden Netzunterbrechung auf jeder Seite, native Play/Pause/Seek, Nachladen und einen Player-/Folgenwechsel prüfen. Nach einem Netzabbruch: gleicher Raum, erhaltene Bezugspunkte, beide pausiert, danach erfolgreiches Play. Nach einem Medienwechsel: neue Ausrichtung.
 
-Es wurde noch kein Server bestellt und keine Produktionsverfügbarkeit behauptet.
+## Laufender Server
+
+Seit 27. Oktober 2026 läuft der Relay auf dem netcup VPS 500 G12.5 (Debian 13). Eingerichtet:
+
+- SSH nur mit Schlüssel für `root`; Passwort-, Keyboard-Interactive- und GSSAPI-Anmeldung sowie alle Weiterleitungen und Tunnel aus (`/etc/ssh/sshd_config.d/00-video-sync-hardening.conf`). Hostschlüssel vor der ersten Verbindung mit der netcup-Mail abgeglichen.
+- `ufw`: eingehend nur 22/tcp (rate-limitiert), 80/tcp, 443/tcp und 443/udp. Docker veröffentlicht nur 80/443 (Caddy); 8787 ist von außen nicht erreichbar.
+- `unattended-upgrades` für Debian-, Debian-Security- und Docker-Pakete täglich um 04:00 Uhr, bei Bedarf Neustart um 04:30 Uhr (Europe/Berlin). Docker mit `live-restore`, `no-new-privileges` und `icc: false`.
+- Kernel-Sysctls: keine unprivilegierten User-Namespaces und kein unprivilegiertes BPF.
+- Projekt unter `/opt/video-sync` als Checkout eines gemergten Main-Commits; `deploy/.env` (nur `PUBLIC_ADDRESS`) mit Rechten 600.
+
+Aktualisieren: `git fetch origin && git checkout --detach <gemergter Commit>`, danach `docker compose --env-file deploy/.env -f deploy/compose.yaml up -d --build` in einem ruhigen Moment (Räume liegen im RAM).
+
+Es gibt keine Verfügbarkeitszusage und kein Monitoring.
