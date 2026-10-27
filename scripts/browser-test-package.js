@@ -17,14 +17,7 @@ export async function fileHashes(root) {
   return Object.fromEntries(Object.entries(result).sort(([a], [b]) => a.localeCompare(b)));
 }
 
-// Load the actual archive, not a mutable build directory. Verify that the ZIP,
-// update bundle and metadata name the same files before starting any browser.
-export async function loadPackage({ root, channel, version, commit, destination }) {
-  const archive = join(root, 'dist', channel, `video-sync-${version}.zip`);
-  const archiveHash = sha256(await readFile(archive));
-  const expected = (await readFile(`${archive}.sha256`, 'utf8')).split(/\s/)[0];
-  assert.equal(archiveHash, expected, `${channel}: ZIP checksum`);
-  await mkdir(destination, { recursive: true });
+function extract(archive, destination) {
   execFileSync('python3', ['-c', `import pathlib,sys,zipfile
 root=pathlib.Path(sys.argv[2]).resolve()
 with zipfile.ZipFile(sys.argv[1]) as archive:
@@ -33,6 +26,33 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
   if not target.is_relative_to(root): raise ValueError('Unsafe archive path')
  archive.extractall(root)
 `, archive, destination]);
+}
+
+// The Chrome Web Store upload: extension files at the ZIP root, Stable features, no updater.
+export async function loadStorePackage({ root, version, commit, destination }) {
+  const archive = join(root, 'dist', 'store', `video-sync-${version}-store.zip`);
+  const archiveHash = sha256(await readFile(archive));
+  assert.equal(archiveHash, (await readFile(`${archive}.sha256`, 'utf8')).split(/\s/)[0], 'store: ZIP checksum');
+  await mkdir(destination, { recursive: true });
+  extract(archive, destination);
+  const metadata = JSON.parse(await readFile(join(destination, 'build-info.json'), 'utf8'));
+  const manifest = JSON.parse(await readFile(join(destination, 'manifest.json'), 'utf8'));
+  assert.equal(metadata.commit, commit, 'store: candidate commit');
+  assert.equal(metadata.channel, 'stable', 'store: Stable feature set');
+  assert.equal(metadata.distribution, 'chrome-web-store', 'store: distribution');
+  assert.equal(manifest.version, version, 'store: manifest version');
+  return { archive, sha256: archiveHash, extension: destination, metadata, version, hashes: await fileHashes(destination) };
+}
+
+// Load the actual archive, not a mutable build directory. Verify that the ZIP,
+// update bundle and metadata name the same files before starting any browser.
+export async function loadPackage({ root, channel, version, commit, destination }) {
+  const archive = join(root, 'dist', channel, `video-sync-${version}.zip`);
+  const archiveHash = sha256(await readFile(archive));
+  const expected = (await readFile(`${archive}.sha256`, 'utf8')).split(/\s/)[0];
+  assert.equal(archiveHash, expected, `${channel}: ZIP checksum`);
+  await mkdir(destination, { recursive: true });
+  extract(archive, destination);
   const extension = join(destination, 'video-sync', 'extension');
   const metadata = JSON.parse(await readFile(join(extension, 'build-info.json'), 'utf8'));
   const manifest = JSON.parse(await readFile(join(extension, 'manifest.json'), 'utf8'));

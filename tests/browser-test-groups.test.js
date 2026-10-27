@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { browserMatrix, browserDiagnostics, browserGroups } from '../scripts/browser-test-matrix.js';
 
-const packages = { stable: { extension: '/candidate-stable' }, experimental: { extension: '/candidate-experimental' } };
+const packages = { stable: { extension: '/candidate-stable' }, experimental: { extension: '/candidate-experimental' }, store: { extension: '/candidate-store' } };
 
 test('every required suite belongs to exactly one known CI group and no group is empty', () => {
   const suites = browserMatrix(packages);

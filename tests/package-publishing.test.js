@@ -15,9 +15,9 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'video-sync-publisher-'));
   t.after(() => rm(root, { recursive: true, force: true }));
-  for (const dir of ['scripts', 'extension', 'bin', 'docs', 'dist/experimental', 'dist/stable']) await mkdir(join(root, dir), { recursive: true });
-  for (const file of ['publish-release.js', 'package-bundle.js', 'github-releases.js', 'release-refs.js', 'release-signing.js']) await cp(`scripts/${file}`, join(root, 'scripts', file));
-  for (const file of ['github-updates.js', 'package-files.js', 'update-signature.js']) await cp(`extension/${file}`, join(root, 'extension', file));
+  for (const dir of ['scripts', 'extension', 'bin', 'docs', 'dist/experimental', 'dist/stable', 'dist/store']) await mkdir(join(root, dir), { recursive: true });
+  for (const file of ['publish-release.js', 'package-bundle.js', 'github-releases.js', 'release-refs.js', 'release-signing.js', 'store-package.js']) await cp(`scripts/${file}`, join(root, 'scripts', file));
+  for (const file of ['github-updates.js', 'package-files.js', 'update-signature.js', 'features.js']) await cp(`extension/${file}`, join(root, 'extension', file));
   // The fixture checkout trusts a freshly generated test key, never the real one.
   await writeFile(join(root, 'extension/release-key.js'), releaseKeyModule(testReleaseKey().publicKey));
   await writeFile(join(root, 'package.json'), '{"type":"module"}');
@@ -38,6 +38,9 @@ async function fixture(t) {
     await writeFile(join(root, 'dist', channel, archive), bytes);
     await writeFile(join(root, 'dist', channel, `${archive}.sha256`), `${hash(bytes)}  ${archive}\n`);
   }
+  const store = join(root, 'dist/store', `video-sync-${version}-store.zip`);
+  execFileSync('python3', ['-c', 'import json,sys,zipfile\nwith zipfile.ZipFile(sys.argv[1],"w") as z: z.writestr("build-info.json", json.dumps({"commit": sys.argv[2], "distribution": "chrome-web-store"}))', store, commit]);
+  await writeFile(`${store}.sha256`, `${hash(await readFile(store))}  video-sync-${version}-store.zip\n`);
   const statePath = join(root, 'mock.json');
   await writeFile(statePath, JSON.stringify({ root, releases: {} }));
   const run = (env = {}) => spawnSync(process.execPath, ['scripts/publish-release.js'], { cwd: root, encoding: 'utf8',
@@ -54,7 +57,8 @@ test('publisher uploads the exact built files under fixed names and never replac
   assert.equal(release.prerelease, true); assert.equal(release.draft, false);
   assert.equal(release.target_commitish, f.commit);
   assert.deepEqual(release.assets.map(asset => asset.name).sort(), [`video-sync-${f.version}-stable.zip`, `video-sync-${f.version}.zip`,
-    `video-sync-${f.version}.zip.sha256`, 'update-stable.json', 'update-stable.json.sig', 'update.json', 'update.json.sig'].sort());
+    `video-sync-${f.version}.zip.sha256`, `video-sync-${f.version}-store.zip`, `video-sync-${f.version}-store.zip.sha256`,
+    'update-stable.json', 'update-stable.json.sig', 'update.json', 'update.json.sig'].sort());
   const publicKey = testReleaseKey().publicKey;
   for (const channel of ['experimental', 'stable']) {
     const asset = updateAssetName(channel === 'stable');

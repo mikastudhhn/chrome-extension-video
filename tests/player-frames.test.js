@@ -216,7 +216,7 @@ function backgroundFixture() {
   const context = vm.createContext({ chrome, discoverPlayer, callPlayer,
     createOffscreenHost, fault, errorResponse, updateRecovery: Promise.resolve(), recovery: { pending: false },
     channelName: value => value, featuresFor: () => ({ audioDiagnostics: false }),
-    fetch: async () => ({ json: async () => ({ local: null }) }), createDevelopmentSession: () => null });
+    fetch: async () => ({ json: async () => ({ local: null }) }), createDevelopmentSession: () => null, STORE: false });
   const source = readFileSync(new URL('../extension/background.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '');
   vm.runInContext(source, context);
   return message => new Promise((resolve, reject) => listener({ target: 'background', ...message },

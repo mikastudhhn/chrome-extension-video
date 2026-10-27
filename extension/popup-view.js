@@ -1,4 +1,5 @@
 import { engineVersionLabel } from './version-label.js';
+import { STORE } from './distribution.js';
 import { parseInvitation } from './invitation.js';
 import { readableError } from './errors.js';
 const $ = id => document.getElementById(id);
@@ -126,8 +127,13 @@ export function renderPopup({ current, pending, pendingAction, loaded, settingsO
   $('release-channel').value = channel;
   $('release-channel').disabled = pending || !!current?.updating;
   text('channel-label', label);
+  // Store installations follow the Web Store; there is no release stream to show or choose.
+  $('channel-label').hidden = STORE;
+  $('release-channel-row').hidden = STORE;
+  $('channel-hint').hidden = STORE;
+  $('open-updates').hidden = STORE;
   const appVersion = chrome.runtime.getManifest().version, version = engineVersionLabel(current);
-  text('edition', `${label} ${version}${version === appVersion ? '' : ` · App ${appVersion}`}`);
+  text('edition', `${STORE ? 'Chrome Web Store' : label} ${version}${version === appVersion ? '' : ` · App ${appVersion}`}`);
   $('experimental-credit').hidden = !['experimental', 'local'].includes(channel);
   renderUpdateBanner({ current, pending, updatesOpen: updatesOpen || onboardingOpen, updateBannerError });
   $('player-page').hidden = onboardingOpen || settingsOpen;

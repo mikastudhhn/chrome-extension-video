@@ -23,7 +23,7 @@ async function candidateFixture(t, channel = 'experimental', overrides = {}) {
 }
 
 test('shared CI matrix runs recovery for both matching candidate profiles', () => {
-  const packages = { stable: { extension: '/verified/stable/extension' }, experimental: { extension: '/verified/experimental/extension' } };
+  const packages = { stable: { extension: '/verified/stable/extension' }, experimental: { extension: '/verified/experimental/extension' }, store: { extension: '/verified/store' } };
   const suites = browserMatrix(packages).filter(suite => suite.script === 'e2e-update-recovery.js');
   assert.deepEqual(suites.map(suite => suite.name), ['update-recovery-stable', 'update-recovery-experimental']);
   for (const suite of suites) {

@@ -1,13 +1,16 @@
 import { createPackageBundle } from './package-bundle.js';
+import { prepareStorePackage } from './store-package.js';
 import { updateAssetName } from '../extension/package-files.js';
 import { copyFile, mkdir, cp, rm, readFile, writeFile } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 const server = new URL(process.argv[2] || 'http://localhost:8787');
 const channel = process.env.PACKAGE_PROFILE || 'experimental';
-if (!['stable', 'experimental'].includes(channel)) throw new Error('PACKAGE_PROFILE must be stable or experimental.');
+if (!['stable', 'experimental', 'store'].includes(channel)) throw new Error('PACKAGE_PROFILE must be stable, experimental or store.');
+// The Chrome Web Store package runs the Stable feature set without the GitHub updater.
+const store = channel === 'store';
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 if (server.username || server.password || server.search || server.hash || server.pathname !== '/' ||
     !(server.protocol === 'https:' || (server.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(server.hostname)))) {
@@ -24,11 +27,13 @@ await rm(directory, { recursive: true, force: true });
 await mkdir(extensionDirectory, { recursive: true });
 await cp('extension', extensionDirectory, { recursive: true });
 await writeFile(join(extensionDirectory, 'build-info.json'), JSON.stringify({ schema: 2,
-  repository: 'mikastudhhn/chrome-extension-video', commit, channel, candidateTag, local: null }, null, 2) + '\n');
+  repository: 'mikastudhhn/chrome-extension-video', commit, channel: store ? 'stable' : channel, candidateTag, local: null,
+  ...(store ? { distribution: 'chrome-web-store' } : {}) }, null, 2) + '\n');
 await writeFile(join(extensionDirectory, 'config.js'), `export const DEFAULT_SERVER = ${JSON.stringify(server.origin)};\n`);
 const manifest = JSON.parse(await readFile(join(extensionDirectory, 'manifest.json'), 'utf8'));
 manifest.version = version;
 manifest.version_name = `${manifest.version} · ${channel === 'stable' ? 'Stable' : 'Experimental'}`;
+if (store) await prepareStorePackage(extensionDirectory, manifest);
 await writeFile(join(extensionDirectory, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 const prompt = `Installiere Video Sync ${manifest.version} aus dieser ZIP als entpackte Chrome-Erweiterung in einem dauerhaften Ordner. Der zu ladende Unterordner heißt video-sync/extension. Aktiviere chrome://extensions → Entwicklermodus → Entpackte Erweiterung laden und hefte Video Sync an. Falls die Extension bereits installiert ist, aktualisiere den Inhalt des bisherigen Erweiterungsordners und klicke Neu laden; installiere keine zweite Kopie.
 
@@ -77,23 +82,37 @@ Der gemeinsame HTTPS-Server muss durchgehend erreichbar sein; für den Dauerbetr
 
 Anbieter sind mit ${manifest.version} noch nicht praktisch abgenommen; Netflix verwendet eine private Schnittstelle. INSTALL-PROMPT.txt enthält die Einrichtungsschritte für einen lokalen Assistenten.
 `;
-await writeFile(join(directory, 'INSTALL-PROMPT.txt'), prompt);
-await writeFile(join(directory, 'INSTALLATION.md'), instructions);
-await copyFile('docs/updates.md', join(directory, 'UPDATES.md'));
-await copyFile('docs/release-workflow.md', join(directory, 'VERSIONEN.md'));
-await copyFile('docs/experimental-test.md', join(directory, 'EXPERIMENTAL-TEST.md'));
-await copyFile('CHANGELOG.md', join(directory, 'CHANGELOG.md'));
-execFileSync(process.execPath, ['--experimental-vm-modules', '--no-warnings', 'scripts/validate-development.js', extensionDirectory], { stdio: 'pipe' });
-const bundle = await createPackageBundle(extensionDirectory, { repository: 'mikastudhhn/chrome-extension-video', channel, commit, candidateTag, version: manifest.version });
-const archive = resolve(`dist/${channel}/video-sync-${manifest.version}.zip`);
-execFileSync('python3', ['-c', `import pathlib,sys,zipfile
-root=pathlib.Path(sys.argv[1])
+if (store) {
+  // The Web Store expects manifest.json at the root of the uploaded ZIP.
+  execFileSync(process.execPath, ['--experimental-vm-modules', '--no-warnings', 'scripts/validate-development.js', extensionDirectory], { stdio: 'pipe' });
+  const archive = resolve(`dist/store/video-sync-${manifest.version}-store.zip`);
+  zip(extensionDirectory, archive, extensionDirectory);
+  const digest = createHash('sha256').update(await readFile(archive)).digest('hex');
+  await writeFile(`${archive}.sha256`, `${digest}  video-sync-${manifest.version}-store.zip\n`);
+  console.log(JSON.stringify({ archive, extensionDirectory, server: server.origin, sha256: digest, channel, commit }, null, 2));
+} else {
+  await writeFile(join(directory, 'INSTALL-PROMPT.txt'), prompt);
+  await writeFile(join(directory, 'INSTALLATION.md'), instructions);
+  await copyFile('docs/updates.md', join(directory, 'UPDATES.md'));
+  await copyFile('docs/release-workflow.md', join(directory, 'VERSIONEN.md'));
+  await copyFile('docs/experimental-test.md', join(directory, 'EXPERIMENTAL-TEST.md'));
+  await copyFile('CHANGELOG.md', join(directory, 'CHANGELOG.md'));
+  execFileSync(process.execPath, ['--experimental-vm-modules', '--no-warnings', 'scripts/validate-development.js', extensionDirectory], { stdio: 'pipe' });
+  const bundle = await createPackageBundle(extensionDirectory, { repository: 'mikastudhhn/chrome-extension-video', channel, commit, candidateTag, version: manifest.version });
+  const archive = resolve(`dist/${channel}/video-sync-${manifest.version}.zip`);
+  zip(directory, archive, dirname(directory));
+  const digest = createHash('sha256').update(await readFile(archive)).digest('hex');
+  await writeFile(`${archive}.sha256`, `${digest}  video-sync-${manifest.version}.zip\n`);
+  const update = resolve('dist', channel, updateAssetName());
+  await writeFile(update, JSON.stringify(bundle));
+  console.log(JSON.stringify({ archive, extensionDirectory, server: server.origin, sha256: digest, channel, commit, update }, null, 2));
+}
+
+function zip(root, archive, base) {
+  execFileSync('python3', ['-c', `import pathlib,sys,zipfile
+root=pathlib.Path(sys.argv[1]); base=pathlib.Path(sys.argv[3])
 with zipfile.ZipFile(sys.argv[2],'w',zipfile.ZIP_DEFLATED) as archive:
  for path in sorted(root.rglob('*')):
-  if path.is_file(): archive.write(path,path.relative_to(root.parent))
-`, directory, archive]);
-const digest = createHash('sha256').update(await readFile(archive)).digest('hex');
-await writeFile(`${archive}.sha256`, `${digest}  video-sync-${manifest.version}.zip\n`);
-const update = resolve('dist', channel, updateAssetName());
-await writeFile(update, JSON.stringify(bundle));
-console.log(JSON.stringify({ archive, extensionDirectory, server: server.origin, sha256: digest, channel, commit, update }, null, 2));
+  if path.is_file(): archive.write(path,path.relative_to(base))
+`, root, archive, base]);
+}

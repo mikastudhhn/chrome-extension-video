@@ -1,6 +1,6 @@
 # Updates
 
-Updates kommen aus den öffentlichen GitHub-Releases des [Repositorys](https://github.com/mikastudhhn/chrome-extension-video). Dafür sind weder ein GitHub-Account noch ein Token nötig. Ein eigener Token ist optional und erhöht nur GitHubs Abfragegrenze. Die Erweiterung wird nicht im Chrome Web Store veröffentlicht.
+Updates kommen aus den öffentlichen GitHub-Releases des [Repositorys](https://github.com/mikastudhhn/chrome-extension-video). Dafür sind weder ein GitHub-Account noch ein Token nötig. Ein eigener Token ist optional und erhöht nur GitHubs Abfragegrenze. Das gilt für die GitHub-Pakete; die nicht gelistete Chrome-Web-Store-Version enthält keinen Updater, Chrome aktualisiert sie selbst ([Chrome Web Store](chrome-web-store.md)).
 
 ## Einmal installieren
 

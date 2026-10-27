@@ -5,6 +5,7 @@ import { publishRelease, getRelease, downloadAsset } from './github-releases.js'
 import { updateAssetName } from '../extension/package-files.js';
 import { readPackageBundle } from './package-bundle.js';
 import { loadSigningKey, releaseSignature } from './release-signing.js';
+import { verifyStorePackage } from './store-package.js';
 
 // Publishes the files CI built and tested for this commit; nothing is rebuilt.
 // Only detached signatures are added; they never change the tested files.
@@ -30,8 +31,12 @@ for (const [from, name] of [
   [`dist/experimental/video-sync-${version}.zip.sha256`, `video-sync-${version}.zip.sha256`],
   [experimentalPackage.path, updateAssetName()],
   [`dist/stable/video-sync-${version}.zip`, `video-sync-${version}-stable.zip`],
-  [stablePackage.path, updateAssetName(true)]
+  [stablePackage.path, updateAssetName(true)],
+  // Chrome Web Store upload of the same commit; Chrome verifies and updates it, so it is not signed here.
+  [`dist/store/video-sync-${version}-store.zip`, `video-sync-${version}-store.zip`],
+  [`dist/store/video-sync-${version}-store.zip.sha256`, `video-sync-${version}-store.zip.sha256`]
 ]) { const path = join(directory, name); await copyFile(from, path); files.push(path); }
+await verifyStorePackage(join(directory, `video-sync-${version}-store.zip`), experimental.commit);
 // update.json is installable in this Experimental release. The prepared
 // Stable package is signed for this candidate tag only: its signature proves
 // CI provenance at promotion, but never verifies as a released Stable update.
