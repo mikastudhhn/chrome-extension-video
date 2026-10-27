@@ -36,7 +36,7 @@ Die Dateien `Dockerfile`, `deploy/compose.yaml`, `deploy/Caddyfile` und `deploy/
 
 ```sh
 cp deploy/.env.example deploy/.env
-# PUBLIC_ADDRESS (IPv4-Adresse oder Domain) und ACME_EMAIL in deploy/.env setzen.
+# PUBLIC_ADDRESS (IPv4-Adresse oder Domain) in deploy/.env setzen.
 docker compose --env-file deploy/.env -f deploy/compose.yaml up -d --build
 curl --fail https://203.0.113.10/health
 ```
