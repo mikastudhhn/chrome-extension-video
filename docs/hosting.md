@@ -54,13 +54,13 @@ npm run package -- https://203.0.113.10
 ## Was für beständigen Betrieb nötig ist
 
 - Server dauerhaft laufen lassen; keinen Laptop und keinen temporären Tunnel als Produktionsserver verwenden.
-- `restart: unless-stopped` startet abgestürzte Prozesse und nach einem Hostneustart laufende Container wieder. Ein Docker-Healthcheck allein startet einen hängenden Prozess **nicht** neu. Ein externer Monitor sollte `/health` mindestens jede Minute prüfen und bei wiederholtem Ausfall alarmieren; er ist hier noch nicht eingerichtet. Quelle: [Docker restart policies](https://docs.docker.com/engine/containers/start-containers-automatically/).
+- `restart: unless-stopped` startet abgestürzte Prozesse und nach einem Hostneustart laufende Container wieder. Ein Docker-Healthcheck allein startet einen hängenden Prozess **nicht** neu. Ein externer Monitor prüft `/health` alle 15 Minuten und meldet Ausfälle (Abschnitt „Überwachung und Statistik“). Quelle: [Docker restart policies](https://docs.docker.com/engine/containers/start-containers-automatically/).
 - Updates und geplante Neustarts außerhalb gemeinsamer Sitzungen durchführen. Räume liegen im RAM: Ein Serverneustart erfordert einen neuen Raum und erneute Ausrichtung. Ein einzelner VPS hat keinen automatischen Ausfallschutz auf einen zweiten Server.
 - Keine Skalierung auf mehrere App-Container hinter einem Load Balancer: Der Raumzustand ist lokal im einzelnen Prozess.
 - Beide Rechner während der Sitzung wach halten. Router-, WLAN-, Strom- und Streaminganbieter-Ausfälle kann ein VPS nicht verhindern. Bei schwankendem WLAN zuerst Ethernet bzw. ein stabiles Netz verwenden.
 - Für einen Neustart einen ruhigen Moment wählen: `docker compose --env-file deploy/.env -f deploy/compose.yaml kill -s SIGUSR2 app`, danach `docker compose … logs --tail 1 app` zeigt eine Zeile `"event":"status"` mit `activeRooms`/`joinedRooms` (ohne Adressen, Codes oder Tokens). Bei offenen Räumen schreibt der Relay diese Zeile zusätzlich alle fünf Minuten.
-- Abwehr: Caddy begrenzt Header-Lesezeit (5 s), Body-Lesezeit (10 s) und Body-Größe (16 KiB) und setzt `X-Real-IP`; der Relay begrenzt Anfragen, Warteschlangen und Räume je Adresse und insgesamt. Caddy läuft read-only ohne Capabilities außer `NET_BIND_SERVICE`; Images sind per Digest festgelegt (beim Update Tag und Digest gemeinsam ändern).
-- Logs sind größenbegrenzt; Bearer-Tokens und Videoinhalte werden nicht protokolliert. Der Relay verarbeitet Steuerdaten im Speicher; HTTPS verschlüsselt die Transportstrecken, nicht Ende-zu-Ende gegenüber dem eigenen Server.
+- Abwehr: Die Firewall begrenzt neue und offene Verbindungen je Adresse (`deploy/firewall.sh`). Caddy begrenzt Header-Lesezeit (5 s), Header-Größe (16 KB), Body-Lesezeit (10 s) und Body-Größe (16 KiB) und setzt `X-Real-IP`; der Relay begrenzt Anfragen, Warteschlangen und Räume je Adresse und insgesamt. Caddy läuft read-only ohne Capabilities außer `NET_BIND_SERVICE`; Images sind per Digest festgelegt (beim Update Tag und Digest gemeinsam ändern).
+- Logs sind größenbegrenzt; Bearer-Tokens, Adressen und Videoinhalte werden nicht protokolliert. Der Relay verarbeitet Steuerdaten im Speicher; HTTPS verschlüsselt die Transportstrecken, nicht Ende-zu-Ende gegenüber dem eigenen Server.
 
 ## Abnahme vor dem ersten langen Film
 
@@ -83,7 +83,59 @@ Seit 27. Oktober 2026 läuft der Relay auf dem netcup VPS 500 G12.5 (Debian 13).
 - `unattended-upgrades` für Debian-, Debian-Security- und Docker-Pakete täglich um 04:00 Uhr, bei Bedarf Neustart um 04:30 Uhr (Europe/Berlin). Docker mit `live-restore`, `no-new-privileges` und `icc: false`.
 - Kernel-Sysctls: keine unprivilegierten User-Namespaces und kein unprivilegiertes BPF.
 - Projekt unter `/opt/video-sync` als Checkout eines gemergten Main-Commits; `deploy/.env` (nur `PUBLIC_ADDRESS`) mit Rechten 600.
+- Verbindungsgrenzen je Adresse vor Caddy (`deploy/firewall.sh`, eingebunden über `video-sync-firewall.service`, siehe unten).
 
-Aktualisieren: `git fetch origin && git checkout --detach <gemergter Commit>`, danach `docker compose --env-file deploy/.env -f deploy/compose.yaml up -d --build` in einem ruhigen Moment (Räume liegen im RAM).
+Aktualisieren in einem ruhigen Moment (Räume liegen im RAM):
 
-Es gibt keine Verfügbarkeitszusage und kein Monitoring.
+```sh
+cd /opt/video-sync
+git fetch origin && git checkout --detach <gemergter Commit>
+SOURCE_COMMIT=$(git rev-parse --short HEAD) docker compose --env-file deploy/.env -f deploy/compose.yaml up -d --build
+```
+
+Es gibt keine Verfügbarkeitszusage.
+
+### Schutz vor Bots und Überlastung
+
+- **Großangriffe (DDoS):** Gegen Angriffe, die die Leitung des Servers füllen, hilft nur der Netzbetreiber. netcup nennt seinen kostenlosen DDoS-Filter (bis Layer 4) ausdrücklich für Root- und Managed-Server; für VPS sagt die Seite nichts ([netcup DDoS-Schutz](https://www.netcup.com/de/ueber-netcup/ddos-schutz)). Wir gehen deshalb nicht von einem Filter aus. Ein großer Angriff würde den Relay bis zu seinem Ende unerreichbar machen; Daten gehen dabei nicht verloren, weil der Server keine speichert.
+- **Einzelne Angreifer und Bots:** `deploy/firewall.sh` lässt je IPv4-Adresse bzw. IPv6-/64-Netz höchstens 64 offene Verbindungen und 20 neue Verbindungen pro Sekunde (nach 100 auf einmal) zu Port 80/443 zu; darüber werden Verbindungen zurückgesetzt bzw. verworfen. Ein Browser braucht davon wenige. Docker leitet veröffentlichte Ports an ufw vorbei, die Regeln stehen deshalb in der Kette `DOCKER-USER`; SSH ist nicht betroffen. Danach begrenzen Caddy und der Relay je Adresse (siehe oben). Scanner, die nach fremden Pfaden wie `/wp-login.php` suchen, bekommen 404 und werden nur gezählt.
+- **SSH:** nur Schlüssel, keine Passwörter; ufw verlangsamt wiederholte Verbindungsversuche. Ein zusätzliches fail2ban bringt bei reiner Schlüsselanmeldung keinen Sicherheitsgewinn.
+
+Einrichten bzw. nach Änderungen an `deploy/firewall.sh`:
+
+```sh
+install -m 644 /opt/video-sync/deploy/video-sync-firewall.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now video-sync-firewall.service
+systemctl restart video-sync-firewall.service   # nach Änderungen
+iptables -S VIDEO-SYNC-LIMITS                   # aktive Regeln
+```
+
+### Überwachung und Statistik
+
+**Ausfall-Warnung:** `.github/workflows/monitor.yml` prüft alle 15 Minuten von GitHub aus (`scripts/monitor.js`, Adresse aus der Repository-Variable `VIDEO_SYNC_SERVER`):
+
+- `/health` antwortet (drei Versuche im Abstand von 20 Sekunden),
+- das Zertifikat ist gültig und noch mindestens 36 Stunden gültig (Caddy erneuert normalerweise mit etwa zwei Tagen Rest),
+- der Server meldet seit dem vorigen Lauf keinen neuen Vorfall.
+
+Vorfälle meldet der Server unter `/health` in `incidents` (nur Grund und Zeitpunkt, 24 Stunden): `error` unerwarteter Programmfehler, `crash` Prozess nicht sauber beendet (Absturz, Speicherlimit), `limits` mehr als 500 abgewiesene Anfragen pro Stunde (Bot/Angriff), `capacity` Server ausgelastet, `disk` weniger als 1 GB frei, `memory` mehr als 200 MB Arbeitsspeicher. Jeder Vorfall schlägt einmal fehl; ein andauernder Ausfall bei jedem Lauf.
+
+Ein fehlgeschlagener Lauf schickt GitHubs Benachrichtigung an die Person, die zuletzt die `cron`-Zeile geändert hat (GitHub → Settings → Notifications → Actions: „Only notify for failed workflows“, E-Mail). Grenzen: GitHub startet geplante Läufe manchmal verspätet, und in öffentlichen Repositories schaltet GitHub geplante Workflows nach 60 Tagen ohne Repository-Aktivität ab (vorher kommt eine E-Mail; unter Actions → „Monitor relay server“ → „Enable workflow“ wieder einschalten). Manuell starten: Actions → „Monitor relay server“ → „Run workflow“. Quelle: [GitHub: Ereignis `schedule`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule).
+
+**Statistik und Fehlerprotokoll:** Mit `DATA_DIR=/data` (Docker-Volume `app_data`) schreibt der Relay
+
+- `usage/<UTC-Tag>.json`: Tagessummen (alle fünf Minuten aktualisiert, 400 Tage aufbewahrt): erstellte und beigetretene Räume, ungenutzte Einladungen, Raumdauer (unter 10 Minuten, unter 1 Stunde, unter 3 Stunden, länger), Endgründe, höchste Zahl gleichzeitiger Räume, Zustellverzögerung weitergeleiteter Nachrichten, API-Antwortzeit, Fehlercodes, abgewiesene Anfragen nach Limit, Aufrufe unbekannter Pfade, Extension-Builds (`Vertrieb/Kanal/Version`), Starts, Abstürze, Arbeitsspeicher und freien Speicherplatz;
+- `errors/<UTC-Tag>.jsonl`: je Fehler eine Zeile mit ID, Zeit, Route, Status und Code; bei Programmfehlern Fehlermeldung und Stack, bei Protokollablehnungen (`INVALID_MESSAGE`, `INVALID_SEQUENCE`, `INCOMPATIBLE_PROTOCOL`, `ROOM_REQUEST_CONFLICT`, `FORBIDDEN_ROLE`) der Aufbau der Nachricht (Feldnamen, Zahlen, Ja/Nein, Protokollbezeichner; Texte nur als Länge). Dazu Rolle, Extension-Build, Raumalter, Warteschlange und Sequenznummern des Mitglieds sowie Zustand und Commit des Servers. Höchstens 300 Einträge pro Tag und 20 je Fehlerart, 30 Tage aufbewahrt;
+- `running`: Marker, solange der Prozess läuft; bleibt er nach einem Ende stehen, zählt der nächste Start einen Absturz.
+
+Niemals enthalten: IP-Adressen, Raumcodes, Sitzungsschlüssel, Request-IDs, Seiteninhalte oder Texte aus Nachrichten. Adressen, Tokens und UUIDs in Fehlermeldungen werden zusätzlich ersetzt.
+
+Auswerten auf dem Entwicklungsrechner (SSH-Zugang `video-sync`, anders über `VIDEO_SYNC_SSH`):
+
+```sh
+npm run stats                      # letzte 14 Tage und 10 Fehlereinträge
+npm run stats -- --days 60 --errors 30
+npm run stats -- --json            # Rohdaten, z. B. für Diagramme
+```
+
+Zum Nachstellen eines Fehlers: Eintrag mit Route, Code, Nachrichtenaufbau und Sequenznummern lesen, denselben Ablauf als Test gegen `createServer()` schreiben (`tests/server-monitoring.test.js` zeigt das Muster) und den Commit aus `server.commit` auschecken. CPU, Netzwerk und Datenträger des Hosts zeigt zusätzlich das netcup-Kundencenter (SCP) als Grafik.

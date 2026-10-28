@@ -53,7 +53,7 @@ the parked one with `{ "events": [] }` and takes over.
 
 | Method and path | Purpose |
 |---|---|
-| `GET /health` | `{ ok, protocol: 3, capabilities, roomRequests }` with a signed room-request lease |
+| `GET /health` | `{ ok, protocol: 3, capabilities, roomRequests, incidents }` with a signed room-request lease; `incidents` maps fixed reasons (`error`, `crash`, `limits`, `capacity`, `disk`, `memory`) to their latest time in the last 24 hours, for the external monitor (`docs/hosting.md`) |
 | `POST /rooms` | Create a room; returns the host membership |
 | `POST /rooms/:code/join` | Join with the six-character invitation code |
 | `GET /events?after=N` | Long poll for the member's ordered events (Bearer token) |
@@ -73,6 +73,12 @@ valid capability list is rejected with `INCOMPATIBLE_PROTOCOL` (HTTP 400) before
 room or seat is used; the popup asks to update server and extension. The client
 equally rejects a server without a lease offer or a response with another
 protocol number. Bump `PROTOCOL` for every incompatible wire change.
+
+An optional `client: { version, distribution, channel }` names the extension
+build for aggregate counts per build. The server keeps it only as the label
+`distribution/channel/version` (a plain version and two lowercase identifiers,
+anything else counts as `unknown`); it is no part of the request fingerprint and
+older servers ignore it.
 
 Responses contain `protocol`, `code`, `token`, `role`, the server
 `capabilities` and the other member's `peerCapabilities`. The host learns the

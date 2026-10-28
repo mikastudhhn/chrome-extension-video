@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { transientKey, validBatch, normalizeMessage, negotiate, LIMITS, SHORT_CODE_ALPHABET } from '../extension/protocol.js';
 import { fault } from '../extension/runtime-errors.js';
+import { clientLabel } from './operating-counters.js';
 
 function shortCode() {
   const bytes = randomBytes(6);
@@ -47,7 +48,8 @@ export class Rooms {
     const room = { code, members: [], locked: false, created: this.now(), owner };
     this.rooms.set(room.code, room);
     if (owner !== undefined) this.owners.set(owner, (this.owners.get(owner) || 0) + 1);
-    return this.add(room, 'host', capabilities);
+    if (this.counters) this.counters.rooms.created++;
+    return this.add(room, 'host', capabilities, clientLabel(client));
   }
 
   join(code, client) {
@@ -57,16 +59,20 @@ export class Rooms {
     if (!room) throw new RoomError(404, 'ROOM_NOT_FOUND');
     if (room.locked) throw new RoomError(409, 'ROOM_FULL');
     room.locked = true;
-    const guest = this.add(room, 'guest', capabilities);
+    room.joined = this.now();
+    if (this.counters) this.counters.rooms.joined++;
+    const guest = this.add(room, 'guest', capabilities, clientLabel(client));
     this.push(room.members[0], { type: 'peer-joined', capabilities });
     return guest;
   }
 
-  add(room, role, capabilities) {
+  // `client` is the extension build label, kept for aggregate counts and error context.
+  add(room, role, capabilities, client = 'unknown') {
     const member = {
-      capabilities, token: randomBytes(32).toString('base64url'), room, role,
+      capabilities, token: randomBytes(32).toString('base64url'), room, role, client,
       touched: this.now(), events: [], queuedBytes: 0, sequence: 0, sentSequence: 0, wait: null
     };
+    if (this.counters) this.counters.seat(client);
     room.members.push(member);
     this.members.set(member.token, member);
     return { code: room.code, token: member.token, role, peerCapabilities: room.members.find(peer => peer !== member)?.capabilities || [] };
@@ -142,7 +148,7 @@ export class Rooms {
     this.touch(member);
     const acknowledged = member.events.findIndex(event => event.id > after);
     this.drop(member, 0, acknowledged < 0 ? member.events.length : acknowledged);
-    if (member.events.length || signal.aborted) return member.events;
+    if (member.events.length || signal.aborted) return this.deliver(member);
     let superseded = false;
     await new Promise(resolve => {
       const finish = (replaced = false) => {
@@ -159,13 +165,27 @@ export class Rooms {
     });
     if (superseded) { if (this.counters) this.counters.supersededPolls++; return []; }
     this.touch(member);
+    return this.deliver(member);
+  }
+
+  // How long relayed data waited for the receiver, counted at its first delivery.
+  deliver(member) {
+    const now = this.now();
+    for (const event of member.events) {
+      if (event.type !== 'data' || event.delivered) continue;
+      event.delivered = true;
+      if (this.counters) this.counters.delivered(now - event.at);
+    }
     return member.events;
   }
 
   close(room, reason = 'other') {
     if (!room) return;
     if (!this.rooms.delete(room.code)) return;
-    if (this.counters) this.counters.closed[Object.hasOwn(this.counters.closed, reason) ? reason : 'other']++;
+    if (this.counters) {
+      this.counters.closed[Object.hasOwn(this.counters.closed, reason) ? reason : 'other']++;
+      this.counters.roomClosed(room, this.now());
+    }
     if (room.owner !== undefined) {
       const owned = (this.owners.get(room.owner) || 1) - 1;
       if (owned > 0) this.owners.set(room.owner, owned); else this.owners.delete(room.owner);

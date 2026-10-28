@@ -1,0 +1,14 @@
+# Installed as /etc/systemd/system/video-sync-firewall.service (docs/hosting.md).
+# Runs after every Docker start, so the limits survive reboots and Docker upgrades.
+[Unit]
+Description=Video Sync per-address connection limits
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/video-sync/deploy/firewall.sh
+
+[Install]
+WantedBy=docker.service
