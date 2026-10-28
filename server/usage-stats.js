@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, rename, rm, statfs as fsStatfs, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { dayKey } from './error-log.js';
+import { LOAD_LIMITS } from './load-metrics.js';
 
 // Daily usage sums in `<directory>/usage/<UTC day>.json`: only the fixed
 // counter categories of OperatingCounters plus peaks. Nothing per person,
@@ -31,6 +32,8 @@ export function sum(a = {}, b = {}) {
   return result;
 }
 const emptyPeaks = () => ({ activeRooms: 0, joinedRooms: 0, activeMembers: 0, rssMB: 0 });
+// Daily peaks of the load figures (load-metrics.js); its hourly files are kept 30 days only.
+const LOAD_PEAKS = ['inFlight', 'connections', 'relayCpuPercent', 'eventLoopP99Ms', 'hostCpuPercent', 'hostMemoryPercent'];
 
 export class UsageStats {
   constructor({ directory = null, now = Date.now, counters, rooms, commit = 'unknown', statfs = fsStatfs,
@@ -77,8 +80,8 @@ export class UsageStats {
     return Object.fromEntries(Object.entries(this.incidents).filter(([, at]) => at >= since));
   }
 
-  // Every 15 seconds from the server's cleanup timer.
-  tick() {
+  // Every 15 seconds from the server's cleanup timer, with the latest load figures.
+  tick(load = {}) {
     const now = this.now();
     if (dayKey(now) !== this.day) {
       const finished = this.summary();
@@ -91,6 +94,7 @@ export class UsageStats {
     for (const [key, value] of Object.entries({ activeRooms: status.activeRooms, joinedRooms: status.joinedRooms, activeMembers: status.activeMembers, rssMB })) {
       this.peaks[key] = Math.max(this.peaks[key] || 0, value);
     }
+    for (const key of LOAD_PEAKS) if (Number.isFinite(load[key])) this.peaks[key] = Math.max(this.peaks[key] || 0, load[key]);
     if (rssMB > USAGE_LIMITS.rssMB) this.incident('memory');
     // Rolling hour for admission limits and capacity refusals.
     const limited = Object.values(this.counters.limited).reduce((total, value) => total + value, 0);
@@ -140,7 +144,8 @@ export class UsageStats {
   async prune() {
     if (!this.directory) return;
     const today = Date.parse(`${this.day}T00:00:00Z`);
-    for (const [folder, days] of [['usage', USAGE_LIMITS.usageDays], ['errors', USAGE_LIMITS.errorDays], ['reports', USAGE_LIMITS.errorDays]]) {
+    for (const [folder, days] of [['usage', USAGE_LIMITS.usageDays], ['errors', USAGE_LIMITS.errorDays], ['reports', USAGE_LIMITS.errorDays],
+      ['load', LOAD_LIMITS.loadDays]]) {
       const names = await readdir(join(this.directory, folder)).catch(() => []);
       for (const name of names) {
         const day = /^(\d{4}-\d{2}-\d{2})(?:-[A-Z2-9]{4}-[A-Z2-9]{4})?\.jsonl?$/.exec(name)?.[1];

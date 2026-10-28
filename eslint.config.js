@@ -1,7 +1,15 @@
 export default [
   { ignores: ['node_modules/**', 'dist/**', 'test-results/**'] },
   {
-    files: ['extension/**/*.js', 'server/**/*.js', 'scripts/**/*.js', 'tests/**/*.js', 'demo/**/*.js', '*.config.js'],
+    files: [
+      'extension/**/*.js',
+      'server/**/*.js',
+      'admin/**/*.js',
+      'scripts/**/*.js',
+      'tests/**/*.js',
+      'demo/**/*.js',
+      '*.config.js'
+    ],
     rules: {
       'constructor-super': 'error',
       'for-direction': 'error',
