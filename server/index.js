@@ -4,6 +4,8 @@ import { RoomRequests } from './room-requests.js';
 import { OperatingCounters } from './operating-counters.js';
 import { ErrorLog, shapeOf } from './error-log.js';
 import { UsageStats } from './usage-stats.js';
+import { ReportStore } from './reports.js';
+import { sanitizeErrorReport, REPORT_LIMITS } from '../extension/error-report.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve, extname, join } from 'node:path';
@@ -44,7 +46,9 @@ export const SERVER_LIMITS = Object.freeze({
   pollsPerMinute: 1200, // per member
   lookupFailuresPerClient: 10, // failed join lookups per address per minute
   lookupFailureRatePerSecond: 1, // failed join lookups for all addresses together
-  lookupFailureBurst: 30
+  lookupFailureBurst: 30,
+  reportBodyBytes: REPORT_LIMITS.bodyBytes, // error report from the popup
+  reportsPerHour: 5 // per address; 200 per day for all addresses (server/reports.js)
 });
 
 // `dataDirectory` keeps daily usage sums and the error log (docs/hosting.md);
@@ -65,6 +69,8 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
       return { commit, uptimeS: Math.round((now() - started) / 1000), rssMB: Math.round(process.memoryUsage().rss / 1048576),
         inFlight: counters.inFlight, activeRooms, joinedRooms, activeMembers, queuedBytes };
     } });
+  const reports = new ReportStore({ directory: dataDirectory && join(dataDirectory, 'reports'), now, counters, report,
+    onIncident: reason => usage.incident(reason) });
   const roomRequests = new RoomRequests({ now, limit: requestLimit, replayed: () => counters.replays++ });
   let draining = false, shutdown;
   const sockets = new Set();
@@ -143,6 +149,12 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
           throw error;
         }
         json(response, 201, { ...seat, protocol: PROTOCOL, capabilities: CAPABILITIES }); return;
+      }
+      if (request.method === 'POST' && url.pathname === '/reports') {
+        if (!exempt) limitRequests(`report:${client}`, config.reportsPerHour, 'reports', 3_600_000);
+        payload = await body(request, response, config.reportBodyBytes, config.bodyTimeoutMs);
+        const id = reports.save(sanitizeErrorReport(payload), { commit, uptimeS: Math.round((now() - started) / 1000) });
+        json(response, 201, { ok: true, id }); return;
       }
       if (['/events', '/relay', '/leave'].includes(url.pathname)) {
         const token = request.headers.authorization?.replace(/^Bearer /, '');
@@ -249,6 +261,7 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
   server.operatingSnapshot = () => counters.snapshot(rooms, roomRequests.entries.size, draining);
   server.usage = usage;
   server.errors = errors;
+  server.reports = reports;
   // Aggregate operating status without addresses, codes or tokens.
   server.status = () => {
     const memory = process.memoryUsage();
@@ -262,19 +275,19 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
       const timer = setTimeout(() => { for (const socket of sockets) socket.destroy(); }, deadlineMs);
       server.close(error => { clearTimeout(timer); if (error) reject(error); else resolve(); });
       server.closeIdleConnections();
-    }).then(() => Promise.all([usage.stop(), errors.flush()])).then(() => undefined);
+    }).then(() => Promise.all([usage.stop(), errors.flush(), reports.flush()])).then(() => undefined);
     return shutdown;
   };
   return server;
 
-  function limitRequests(key, limit, category) {
+  function limitRequests(key, limit, category, windowMs = 60_000) {
     const currentTime = now();
     let entry = rateLimits.get(key);
     if (!entry && rateLimits.size >= rateLimitEntries) {
       for (const [storedKey, value] of rateLimits) if (value.until < currentTime) rateLimits.delete(storedKey);
       if (rateLimits.size >= rateLimitEntries) throw fault('SERVER_BUSY', 503);
     }
-    if (!entry || entry.until < currentTime) { entry = { count: 0, until: currentTime + 60_000 }; rateLimits.set(key, entry); }
+    if (!entry || entry.until < currentTime) { entry = { count: 0, until: currentTime + windowMs }; rateLimits.set(key, entry); }
     if (++entry.count > limit) { counters.limited[category]++; throw new RoomError(429, 'RATE_LIMITED'); }
   }
 
@@ -316,6 +329,7 @@ function routeName(method, url = '') {
   if (path === '/rooms') return 'create';
   if (/^\/rooms\/[A-Z2-9]{6}\/join$/.test(path)) return 'join';
   if (['/events', '/relay', '/leave'].includes(path)) return path.slice(1);
+  if (path === '/reports') return 'report';
   return method === 'GET' && PUBLIC_ASSET.test(url) ? 'page' : 'unknown';
 }
 
@@ -389,7 +403,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const crashed = error => { server.errors.crash(error); console.error('Video Sync relay crashed.'); process.exit(1); };
   process.on('uncaughtException', crashed);
   process.on('unhandledRejection', crashed);
-  await server.usage.start();
+  // A broken data volume must not stop the relay: the sums then stay in memory.
+  await server.usage.start().catch(error => console.error(`Nutzungsstatistik ohne Datei: ${error.message}`));
   server.listen(port, host, () => console.log('Video Sync relay started.'));
   // Operators pick restart moments from this line (`docker compose logs app`).
   // It repeats every 5 minutes while rooms exist or the count changed.

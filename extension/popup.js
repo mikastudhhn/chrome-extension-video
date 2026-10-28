@@ -136,8 +136,8 @@ function commandContext() {
     expectedPlayer: current?.local ? { mediaId: current.local.mediaId, playerId: current.playerId, bindingId: current.bindingId } : undefined };
 }
 // Reports and deletion acknowledgements are not session snapshots.
-async function diagnosticRequest(action) {
-  const response = await chrome.runtime.sendMessage({ target: 'background', type: 'ui', action });
+async function diagnosticRequest(action, extra = {}) {
+  const response = await chrome.runtime.sendMessage({ target: 'background', type: 'ui', action, ...extra });
   if (response?.ok !== true) throw responseError(response);
   if (!Object.hasOwn(response, 'result')) throw fault('INVALID_RESPONSE');
   return response.result;

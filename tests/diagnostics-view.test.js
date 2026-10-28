@@ -5,12 +5,13 @@ import { Diagnostics, DIAGNOSTIC_LIMITS, serializeDiagnosticReport } from '../ex
 import { mountDiagnostics, downloadDiagnosticReport, DIAGNOSTIC_FILENAME } from '../extension/diagnostics-view.js';
 
 class Control extends EventTarget {
-  constructor() { super(); this.attributes = {}; this.textContent = ''; this.disabled = false; }
+  constructor() { super(); this.attributes = {}; this.textContent = ''; this.value = ''; this.disabled = false; }
   setAttribute(name, value) { this.attributes[name] = value; }
   click() { if (!this.disabled) this.dispatchEvent(new Event('click')); }
 }
 function panel(options) {
-  const controls = Object.fromEntries(['diagnostics-export', 'diagnostics-clear', 'diagnostics-feedback', 'diagnostics-availability'].map(id => [id, new Control()]));
+  const controls = Object.fromEntries(['diagnostics-send', 'diagnostics-note', 'diagnostics-export', 'diagnostics-clear', 'diagnostics-feedback', 'diagnostics-availability']
+    .map(id => [id, new Control()]));
   const root = new Control();
   root.querySelector = selector => controls[selector.slice(1)];
   return { controls, root, view: mountDiagnostics(root, options) };
@@ -77,6 +78,36 @@ test('export/delete failure feedback is local and never displays raw exception t
   assert.equal(controls['diagnostics-feedback'].textContent, 'Löschen nicht bestätigt. Bitte erneut versuchen.');
 });
 
+test('sending a report passes only the note, shows the report ID and our own failure texts', async () => {
+  const requests = [];
+  let reply = async () => ({ id: 'K7Q2-9F3D' });
+  const { controls, view } = panel({ request: async (action, extra) => { requests.push([action, extra]); return reply(); } });
+  controls['diagnostics-send'].click(); await settle();
+  assert.deepEqual(requests, [], 'unavailable engines cannot send');
+  assert.equal(controls['diagnostics-note'].disabled, true);
+  view.update({ diagnosticsAvailable: true, channel: 'stable' });
+  assert.equal(controls['diagnostics-note'].disabled, false);
+  controls['diagnostics-note'].value = 'Nach dem Spulen lief es weiter.';
+  controls['diagnostics-send'].click();
+  assert.equal(controls['diagnostics-feedback'].textContent, 'Fehlerbericht wird gesendet …');
+  await settle();
+  assert.deepEqual(requests, [['diagnostics-report', { note: 'Nach dem Spulen lief es weiter.' }]]);
+  assert.match(controls['diagnostics-feedback'].textContent, /^Fehlerbericht gesendet\. Bericht-ID: K7Q2-9F3D\./);
+  assert.equal(controls['diagnostics-note'].value, '', 'a sent note is cleared');
+  for (const [code, text] of [['RATE_LIMITED', /Zu viele Fehlerberichte/], ['NOT_FOUND', /nimmt keine Fehlerberichte an/],
+    ['NETWORK_ERROR', /Verbindung zum Server prüfen/], [undefined, /Verbindung zum Server prüfen/]]) {
+    reply = async () => { throw Object.assign(new Error('https://SECRET.invalid'), { code }); };
+    controls['diagnostics-note'].value = 'bleibt';
+    controls['diagnostics-send'].click(); await settle();
+    assert.match(controls['diagnostics-feedback'].textContent, text);
+    assert.equal(controls['diagnostics-feedback'].textContent.includes('SECRET'), false);
+    assert.equal(controls['diagnostics-note'].value, 'bleibt', 'a failed send keeps the note');
+  }
+  reply = async () => ({ id: 'not an id' });
+  controls['diagnostics-send'].click(); await settle();
+  assert.match(controls['diagnostics-feedback'].textContent, /Senden nicht möglich/);
+});
+
 test('file serializer reselects fields and enforces bounds rather than exporting raw UI data', () => {
   const content = serializeDiagnosticReport({ schema: 1, storage: 'session-memory', retentionMs: 999,
     appVersion: 'https://SECRET.invalid', engineVersion: '0.5.0', protocol: 2,
@@ -111,6 +142,9 @@ test('popup exposes native keyboard controls and persistent accessible retention
   const html = await readFile(new URL('../extension/popup.html', import.meta.url), 'utf8');
   assert.match(html, /<summary id="diagnostics-summary">Synchronisationsdiagnose<\/summary>/);
   for (const action of ['export', 'clear']) assert.match(html, new RegExp(`<button id="diagnostics-${action}" type="button"[^>]*aria-describedby="diagnostics-retention`));
+  assert.match(html, /<button id="diagnostics-send" type="button"[^>]*aria-describedby="diagnostics-send-privacy/);
+  assert.match(html, /<label for="diagnostics-note">[^<]+<\/label>\s*<textarea id="diagnostics-note"[^>]*maxlength="500"/);
+  assert.match(html, /id="diagnostics-send-privacy" class="hint">[^<]*Verbindungsserver[^<]*Bericht-ID/);
   assert.match(html, /id="diagnostics-retention">[^<]*30 Minuten und 200 Ereignisse/);
   assert.match(html, /id="diagnostics-feedback" role="status" aria-live="polite" aria-atomic="true"/);
 });

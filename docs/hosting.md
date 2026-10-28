@@ -118,7 +118,7 @@ iptables -S VIDEO-SYNC-LIMITS                   # aktive Regeln
 - das Zertifikat ist gültig und noch mindestens 36 Stunden gültig (Caddy erneuert normalerweise mit etwa zwei Tagen Rest),
 - der Server meldet seit dem vorigen Lauf keinen neuen Vorfall.
 
-Vorfälle meldet der Server unter `/health` in `incidents` (nur Grund und Zeitpunkt, 24 Stunden): `error` unerwarteter Programmfehler, `crash` Prozess nicht sauber beendet (Absturz, Speicherlimit), `limits` mehr als 500 abgewiesene Anfragen pro Stunde (Bot/Angriff), `capacity` Server ausgelastet, `disk` weniger als 1 GB frei, `memory` mehr als 200 MB Arbeitsspeicher. Jeder Vorfall schlägt einmal fehl; ein andauernder Ausfall bei jedem Lauf.
+Vorfälle meldet der Server unter `/health` in `incidents` (nur Grund und Zeitpunkt, 24 Stunden): `error` unerwarteter Programmfehler, `crash` Prozess nicht sauber beendet (Absturz, Speicherlimit), `limits` mehr als 500 abgewiesene Anfragen pro Stunde (Bot/Angriff), `capacity` Server ausgelastet, `disk` weniger als 1 GB frei, `memory` mehr als 200 MB Arbeitsspeicher, `report` neuer Fehlerbericht aus der Extension. Jeder Vorfall schlägt einmal fehl; ein andauernder Ausfall bei jedem Lauf.
 
 Ein fehlgeschlagener Lauf schickt GitHubs Benachrichtigung an die Person, die zuletzt die `cron`-Zeile geändert hat (GitHub → Settings → Notifications → Actions: „Only notify for failed workflows“, E-Mail). Grenzen: GitHub startet geplante Läufe manchmal verspätet, und in öffentlichen Repositories schaltet GitHub geplante Workflows nach 60 Tagen ohne Repository-Aktivität ab (vorher kommt eine E-Mail; unter Actions → „Monitor relay server“ → „Enable workflow“ wieder einschalten). Manuell starten: Actions → „Monitor relay server“ → „Run workflow“. Quelle: [GitHub: Ereignis `schedule`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule).
 
@@ -126,6 +126,7 @@ Ein fehlgeschlagener Lauf schickt GitHubs Benachrichtigung an die Person, die zu
 
 - `usage/<UTC-Tag>.json`: Tagessummen (alle fünf Minuten aktualisiert, 400 Tage aufbewahrt): erstellte und beigetretene Räume, ungenutzte Einladungen, Raumdauer (unter 10 Minuten, unter 1 Stunde, unter 3 Stunden, länger), Endgründe, höchste Zahl gleichzeitiger Räume, Zustellverzögerung weitergeleiteter Nachrichten, API-Antwortzeit, Fehlercodes, abgewiesene Anfragen nach Limit, Aufrufe unbekannter Pfade, Extension-Builds (`Vertrieb/Kanal/Version`), Starts, Abstürze, Arbeitsspeicher und freien Speicherplatz;
 - `errors/<UTC-Tag>.jsonl`: je Fehler eine Zeile mit ID, Zeit, Route, Status und Code; bei Programmfehlern Fehlermeldung und Stack, bei Protokollablehnungen (`INVALID_MESSAGE`, `INVALID_SEQUENCE`, `INCOMPATIBLE_PROTOCOL`, `ROOM_REQUEST_CONFLICT`, `FORBIDDEN_ROLE`) der Aufbau der Nachricht (Feldnamen, Zahlen, Ja/Nein, Protokollbezeichner; Texte nur als Länge). Dazu Rolle, Extension-Build, Raumalter, Warteschlange und Sequenznummern des Mitglieds sowie Zustand und Commit des Servers. Höchstens 300 Einträge pro Tag und 20 je Fehlerart, 30 Tage aufbewahrt;
+- `reports/<UTC-Tag>-<ID>.json`: Fehlerberichte, die jemand im Popup unter Einstellungen → Synchronisationsdiagnose gesendet hat (Diagnose, Versionen, Verbindungszustand, eigene Notiz; Inhalt in `docs/diagnostics-relay.md`), 30 Tage aufbewahrt, höchstens 200 pro Tag;
 - `running`: Marker, solange der Prozess läuft; bleibt er nach einem Ende stehen, zählt der nächste Start einen Absturz.
 
 Niemals enthalten: IP-Adressen, Raumcodes, Sitzungsschlüssel, Request-IDs, Seiteninhalte oder Texte aus Nachrichten. Adressen, Tokens und UUIDs in Fehlermeldungen werden zusätzlich ersetzt.
@@ -136,6 +137,8 @@ Auswerten auf dem Entwicklungsrechner (SSH-Zugang `video-sync`, anders über `VI
 npm run stats                      # letzte 14 Tage und 10 Fehlereinträge
 npm run stats -- --days 60 --errors 30
 npm run stats -- --json            # Rohdaten, z. B. für Diagramme
+npm run stats -- --reports         # letzte 20 Fehlerberichte
+npm run stats -- --report K7Q2-9F3D   # ein Bericht mit Ablauf der Diagnose
 ```
 
 Zum Nachstellen eines Fehlers: Eintrag mit Route, Code, Nachrichtenaufbau und Sequenznummern lesen, denselben Ablauf als Test gegen `createServer()` schreiben (`tests/server-monitoring.test.js` zeigt das Muster) und den Commit aus `server.commit` auschecken. CPU, Netzwerk und Datenträger des Hosts zeigt zusätzlich das netcup-Kundencenter (SCP) als Grafik.

@@ -16,7 +16,8 @@ export const INCIDENT_TEXT = Object.freeze({
   limits: 'Mehr als 500 Anfragen pro Stunde wurden von Limits abgewiesen – vermutlich ein Bot oder Angriff.',
   capacity: 'Der Server war ausgelastet und hat Anfragen abgelehnt.',
   disk: 'Weniger als 1 GB Speicherplatz frei.',
-  memory: 'Der Serverprozess braucht ungewöhnlich viel Arbeitsspeicher.'
+  memory: 'Der Serverprozess braucht ungewöhnlich viel Arbeitsspeicher.',
+  report: 'Neuer Fehlerbericht aus der Extension (npm run stats -- --reports).'
 });
 const failure = error => [error?.message, error?.cause?.code || error?.cause?.message].filter(Boolean).join(': ');
 

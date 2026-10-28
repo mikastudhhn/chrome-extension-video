@@ -270,6 +270,21 @@ test('day sums combine carried totals with the difference since the day began', 
   assert.deepEqual(sum({ a: 1, codes: { X: 1 } }, { a: 2, codes: { X: 1, Y: 4 } }), { a: 3, codes: { X: 2, Y: 4 } });
 });
 
+test('process: an unusable DATA_DIR is reported, the relay still serves', async t => {
+  const directory = await folder(t);
+  const blocked = join(directory, 'not-a-directory');
+  await writeFile(blocked, 'x');
+  const child = spawn(process.execPath, ['server/index.js'], { cwd: process.cwd(),
+    env: { ...process.env, HOST: '127.0.0.1', PORT: '0', DATA_DIR: blocked }, stdio: ['ignore', 'pipe', 'pipe'] });
+  t.after(() => { if (child.exitCode === null) child.kill('SIGKILL'); });
+  let output = '', errors = '';
+  child.stderr.on('data', chunk => { errors += chunk; });
+  await new Promise(resolve => child.stdout.on('data', chunk => { output += chunk; if (/relay started/.test(output)) resolve(); }));
+  assert.match(errors, /Nutzungsstatistik ohne Datei/);
+  child.kill('SIGTERM');
+  assert.equal((await once(child, 'exit'))[0], 0);
+});
+
 test('process: DATA_DIR keeps the running marker while serving and removes it on SIGTERM after the last flush', async t => {
   const directory = await folder(t);
   const child = spawn(process.execPath, ['server/index.js'], { cwd: process.cwd(),

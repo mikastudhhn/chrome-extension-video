@@ -5,4 +5,6 @@
 !server/
 !extension/protocol.js
 !extension/runtime-errors.js
+!extension/diagnostics.js
+!extension/error-report.js
 !demo/

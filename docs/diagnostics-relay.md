@@ -12,7 +12,8 @@ alle zehn Sekunden. Die Retention entfernt Ereignisse auch ohne weitere Nutzung.
 Export ist eine Kopie mit App-/Engine-/Protokollversion. Löschen entfernt den
 Puffer sofort. Später tatsächlich eintretende Ereignisse werden neu erfasst.
 Schließen/Ersetzen des Offscreen-Dokuments oder ein Browserneustart verliert den
-Puffer. Es gibt weder Hintergrund-Upload noch persistente Speicherung.
+Puffer. Es gibt weder Hintergrund-Upload noch persistente Speicherung; gesendet wird
+nur ein Fehlerbericht nach Klick (unten).
 
 Die Runtime-Aktionen `diagnostics-export` und `diagnostics-clear` sind für
 vertrauenswürdige Erweiterungskontexte vorgesehen. Der Background erlaubt den
@@ -92,8 +93,9 @@ mehrstündigen Browsernachweise und keine Stable-Abnahme.
 ## UI-Vertrag
 
 - DOM: `diagnostics-panel` (details), `diagnostics-summary` (summary),
-  `diagnostics-export` / `diagnostics-clear` (button), `diagnostics-retention`,
-  `diagnostics-privacy`, `diagnostics-availability`, `diagnostics-feedback` (role=status).
+  `diagnostics-export` / `diagnostics-clear` / `diagnostics-send` (button),
+  `diagnostics-note` (textarea, 500 Zeichen), `diagnostics-retention`, `diagnostics-privacy`,
+  `diagnostics-send-privacy`, `diagnostics-availability`, `diagnostics-feedback` (role=status).
 - `mountDiagnostics(root, { request, download? })` aus `diagnostics-view.js` bindet
   native Click-Aktivierung; `update(status, actionPending=false)` aktualisiert
   Verfügbarkeit über `diagnosticsAvailable === true`, Kanal und Sperrstatus.
@@ -101,6 +103,8 @@ mehrstündigen Browsernachweise und keine Stable-Abnahme.
   sind Berichte/Bestätigungen, kein neuer Sitzungsstatus.
 - Runtime-Aktionen: `{ target: 'background', type: 'ui', action: 'diagnostics-export' }`
   bzw. `diagnostics-clear`. Kein Session-/Player-/Raumobjekt als Argument.
+  `diagnostics-report` trägt nur `note`; der Background sammelt Diagnose und Status
+  selbst, baut den Bericht mit `extension/error-report.js` und liefert `{ id }`.
 - Erfolgsantwort nach normalem Runtime-Envelope `{ ok:true, result }`: Export
   liefert Schema 1 (unten), Löschen `{ cleared:true }`. Fehler nutzen den bestehenden
   Runtime-Fehlervertrag. Im UI werden rohe Fehlermeldungen nicht ausgegeben.
@@ -130,6 +134,23 @@ Metadaten der Exportdatei. `serializeDiagnosticReport` wählt die erlaubten Feld
 am Dateirand erneut aus. Keine Instance-/Generation-/Player-/Binding-/Media-ID,
 Raumkennung oder Request-ID wird ins Format aufgenommen. Schemaänderungen müssen
 explizit versioniert werden.
+
+## Fehlerbericht
+
+„Fehlerbericht senden“ (nur nach Klick, nur aus dem Popup) überträgt an den Server
+des aktuellen Raums bzw. die gespeicherte Serveradresse `POST /reports` mit
+Schema 1: die erneut gefilterte Diagnose (Schema oben), `client` (Version,
+Vertrieb, Kanal), `browser` (Chrome-Hauptversion, Plattform), `session` (nur
+Aufzählungswerte, Zahlen und Ja/Nein: Lebenszyklusphase, Rolle, verbunden,
+Wiederverbindung, Synchronisationsphase, RTT, Adapterklasse, pausiert, puffert,
+blockiert, bekannter Fehlercode) und die optionale Notiz (500 Zeichen, ohne
+Steuerzeichen). Keine URL, kein Titel, kein Raumcode, keine Tab-/Player-/Medien-ID.
+Der Server wählt dieselben Felder mit `sanitizeErrorReport` erneut aus, speichert
+den Bericht 30 Tage unter einer zufälligen ID (`K7Q2-9F3D`, Alphabet der
+Einladungscodes) und meldet den Vorfall `report` an den externen Monitor. Grenzen:
+48 KiB, 5 Berichte pro Stunde je Adresse, 200 pro Tag insgesamt. Antworten zeigt das
+Popup nur mit eigenen Texten; ein alter Server ohne Endpunkt ergibt „nimmt keine
+Fehlerberichte an“.
 
 ## Browserfälle
 

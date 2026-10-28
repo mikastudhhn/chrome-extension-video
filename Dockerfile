@@ -5,7 +5,7 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 DATA_DIR=/data
 WORKDIR /app
 COPY --chown=node:node package.json ./
 COPY --chown=node:node server ./server
-COPY --chown=node:node extension/protocol.js extension/runtime-errors.js ./extension/
+COPY --chown=node:node extension/protocol.js extension/runtime-errors.js extension/diagnostics.js extension/error-report.js ./extension/
 COPY --chown=node:node demo ./demo
 # Usage sums and the error log (docs/hosting.md). A new named volume takes
 # over this directory's owner, so the unprivileged process can write to it.

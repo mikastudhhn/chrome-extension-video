@@ -30,7 +30,7 @@ export class OperatingCounters {
     this.supersededPolls = 0;
     this.closed = { leave: 0, idle: 0, expired: 0, overflow: 0, shutdown: 0, other: 0 };
     // Requests refused by an admission limit, by limit category.
-    this.limited = { flood: 0, concurrency: 0, polls: 0, relay: 0, admission: 0, rooms: 0, lookups: 0 };
+    this.limited = { flood: 0, concurrency: 0, polls: 0, relay: 0, admission: 0, rooms: 0, lookups: 0, reports: 0 };
     this.rooms = { created: 0, joined: 0, unusedInvitations: 0 };
     this.durations = histogram(DURATION_BUCKETS); // joined rooms, from join to close
     this.traffic = { api: 0, health: 0, page: 0, unknown: 0 };
@@ -39,12 +39,13 @@ export class OperatingCounters {
     this.codes = {}; // error responses by runtime error code
     this.clients = {}; // admitted seats by extension build
     this.errorLog = { logged: 0, suppressed: 0 };
+    this.reports = 0; // error reports sent from the popup
   }
 
   begin(route = 'unknown') {
     this.requests++;
     this.inFlight++;
-    this.traffic[{ create: 'api', join: 'api', events: 'api', relay: 'api', leave: 'api', preflight: 'api', health: 'health', page: 'page' }[route] || 'unknown']++;
+    this.traffic[{ create: 'api', join: 'api', events: 'api', relay: 'api', leave: 'api', report: 'api', preflight: 'api', health: 'health', page: 'page' }[route] || 'unknown']++;
     const started = performance.now();
     let finished = false;
     return (status, aborted, code) => {
@@ -79,7 +80,7 @@ export class OperatingCounters {
     return copy({ requests: this.requests, aborted: this.aborted, responses: this.responses,
       replays: this.replays, batchReplays: this.batchReplays, supersededPolls: this.supersededPolls,
       closed: this.closed, limited: this.limited, rooms: this.rooms, durations: this.durations, traffic: this.traffic,
-      apiLatency: this.apiLatency, delivery: this.delivery, codes: this.codes, clients: this.clients, errorLog: this.errorLog });
+      apiLatency: this.apiLatency, delivery: this.delivery, codes: this.codes, clients: this.clients, errorLog: this.errorLog, reports: this.reports });
   }
 
   snapshot(rooms, cachedRequests, draining) {
