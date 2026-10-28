@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { transientKey, validBatch, normalizeMessage, negotiate, LIMITS, SHORT_CODE_ALPHABET } from '../extension/protocol.js';
 import { fault } from '../extension/runtime-errors.js';
 import { clientLabel } from './operating-counters.js';
+import { observeHostState } from './room-features.js';
 
 function shortCode() {
   const bytes = randomBytes(6);
@@ -124,6 +125,12 @@ export class Rooms {
     // A shared budget keeps the whole process inside its memory limit; the
     // sender retries this retryable rejection after the receivers catch up.
     if (this.queuedBytes + sizes.reduce((sum, size) => sum + size, 0) > this.queueBudgetBytes) throw new RoomError(503, 'SERVER_BUSY');
+    if (this.counters) {
+      for (const message of messages) {
+        if (message.type === 'state') observeHostState(member.room, message.state, this.now(), this.counters);
+        else if (message.type === 'resync') this.counters.sync.resyncRequests++;
+      }
+    }
     for (const [position, message] of messages.entries()) {
       const key = transientKey(message);
       if (key) {

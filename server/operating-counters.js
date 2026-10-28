@@ -8,6 +8,7 @@ const API_ROUTES = new Set(['create', 'join', 'relay', 'leave']); // long polls 
 const histogram = buckets => Object.fromEntries(buckets.map(([name]) => [name, 0]));
 const count = (target, buckets, value) => { target[buckets.find(([, bound]) => value < bound)[0]]++; };
 const copy = value => JSON.parse(JSON.stringify(value));
+const actors = () => ({ host: 0, guest: 0, other: 0 });
 
 // `client` in a create/join handshake names the extension build. Anything
 // that is not a plain version and two short identifiers counts as `unknown`.
@@ -31,7 +32,13 @@ export class OperatingCounters {
     this.closed = { leave: 0, idle: 0, expired: 0, overflow: 0, shutdown: 0, other: 0 };
     // Requests refused by an admission limit, by limit category.
     this.limited = { flood: 0, concurrency: 0, polls: 0, relay: 0, admission: 0, rooms: 0, lookups: 0, reports: 0 };
-    this.rooms = { created: 0, joined: 0, unusedInvitations: 0 };
+    // aligned/played: rooms that reached a confirmed scene / played together (room-features.js).
+    this.rooms = { created: 0, joined: 0, unusedInvitations: 0, aligned: 0, played: 0 };
+    // Effective Play/Pause/Seek in the host's timeline, by who triggered them;
+    // `other` covers automatic pauses (network, end of video).
+    this.controls = { play: actors(), pause: actors(), seek: actors() };
+    this.sync = { alignments: 0, realignments: 0, interruptions: 0, resyncRequests: 0, bufferingWaits: 0 };
+    this.playingMs = 0; // time the room played, summed over rooms
     this.durations = histogram(DURATION_BUCKETS); // joined rooms, from join to close
     this.traffic = { api: 0, health: 0, page: 0, unknown: 0 };
     this.apiLatency = histogram(LATENCY_BUCKETS); // create, join, relay and leave
@@ -79,7 +86,8 @@ export class OperatingCounters {
   totals() {
     return copy({ requests: this.requests, aborted: this.aborted, responses: this.responses,
       replays: this.replays, batchReplays: this.batchReplays, supersededPolls: this.supersededPolls,
-      closed: this.closed, limited: this.limited, rooms: this.rooms, durations: this.durations, traffic: this.traffic,
+      closed: this.closed, limited: this.limited, rooms: this.rooms, controls: this.controls, sync: this.sync, playingMs: this.playingMs,
+      durations: this.durations, traffic: this.traffic,
       apiLatency: this.apiLatency, delivery: this.delivery, codes: this.codes, clients: this.clients, errorLog: this.errorLog, reports: this.reports });
   }
 

@@ -6,7 +6,7 @@ import { checkDesignTokens } from './check-design-tokens.js';
 const manifest = JSON.parse(await readFile(new URL('../extension/manifest.json', import.meta.url)));
 if (manifest.manifest_version !== 3 || !manifest.permissions.includes('offscreen')) throw new Error('Invalid extension manifest');
 let count = 0;
-for (const directory of ['extension', 'server', 'demo', 'tests', 'scripts']) {
+for (const directory of ['extension', 'server', 'admin', 'demo', 'tests', 'scripts']) {
   for (const file of await readdir(directory, { recursive: true })) {
     if (!file.endsWith('.js')) continue;
     const check = spawnSync(process.execPath, ['--check', `${directory}/${file}`], { encoding: 'utf8' });

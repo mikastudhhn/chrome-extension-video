@@ -62,7 +62,7 @@ test('rooms count creation, joining, unused invitations, durations and delivery 
   await rooms.poll(receiver, 0, abort.signal, 10); // a repeated delivery is not counted again
   now.advance(2 * 3_600_000);
   rooms.close(receiver.room, 'idle');
-  assert.deepEqual(counters.rooms, { created: 2, joined: 1, unusedInvitations: 1 });
+  assert.deepEqual(counters.rooms, { created: 2, joined: 1, unusedInvitations: 1, aligned: 0, played: 0 });
   assert.deepEqual(counters.durations, { under10m: 0, under1h: 0, under3h: 1, longer: 0 });
   assert.deepEqual(counters.delivery, { under50ms: 0, under250ms: 0, under1s: 1, under5s: 0, longer: 0 });
   assert.deepEqual(counters.clients, { 'chrome-web-store/stable/0.6.0.9': 2, unknown: 1 });

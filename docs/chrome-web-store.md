@@ -41,7 +41,7 @@ Die Store-Installation hat eine eigene Erweiterungs-ID und eigenen Speicher. Wer
 > Gut zu wissen:
 > • Es werden keine Videos oder Töne übertragen. Jede Person schaut ihre eigene Quelle mit ihrem eigenen Zugang.
 > • Über den Verbindungsserver gehen nur Abspielzeit, Pause/Play und ein Raumcode – keine Seiteninhalte, Adressen oder Verläufe.
-> • Keine Konten, keine Werbung, kein Tracking. Fehlerberichte gehen nur auf deinen Klick an den Verbindungsserver.
+> • Keine Konten, keine Werbung, keine Analysedienste von Drittanbietern. Der Server zählt Nutzung und Auslastung als Tages- und Stundenwerte (siehe Datenschutzerklärung). Fehlerberichte gehen nur auf deinen Klick an den Verbindungsserver.
 > • Funktioniert mit HTML5-Videoplayern, auch in eingebetteten Frames. Zugriff auf Websites wird erst nach deiner Freigabe genutzt.
 >
 > Quellcode (MIT): https://github.com/mikastudhhn/chrome-extension-video
@@ -62,7 +62,7 @@ Die Store-Installation hat eine eigene Erweiterungs-ID und eigenen Speicher. Wer
 - Remote-Code: **Nein.** Alle Skripte sind im Paket enthalten; vom Server kommen nur Daten.
 - Datennutzung, empfohlene Angaben (deckungsgleich mit `PRIVACY.md`):
   - **Standort** (IP-Adresse): technisch für die Serververbindung nötig, nur im Arbeitsspeicher zur Missbrauchsbegrenzung, nicht protokolliert.
-  - **Nutzeraktivität**: Play, Pause und Spulen werden an die zweite Person im Raum übertragen. Ein Fehlerbericht (nur nach Klick) enthält Zustandswechsel, Fehlercodes und eine optionale Notiz.
+  - **Nutzeraktivität**: Play, Pause und Spulen werden an die zweite Person im Raum übertragen und vom Server als Tageszahlen ohne Personenbezug mitgezählt (Betriebsstatistik). Ein Fehlerbericht (nur nach Klick) enthält Zustandswechsel, Fehlercodes und eine optionale Notiz.
   - Alle drei Erklärungen bestätigen (kein Verkauf, keine zweckfremde Nutzung, keine Kreditwürdigkeit).
 - Datenschutzerklärung: https://github.com/mikastudhhn/chrome-extension-video/blob/main/PRIVACY.md
 

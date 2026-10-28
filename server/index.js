@@ -4,6 +4,7 @@ import { RoomRequests } from './room-requests.js';
 import { OperatingCounters } from './operating-counters.js';
 import { ErrorLog, shapeOf } from './error-log.js';
 import { UsageStats } from './usage-stats.js';
+import { LoadMetrics } from './load-metrics.js';
 import { ReportStore } from './reports.js';
 import { sanitizeErrorReport, REPORT_LIMITS } from '../extension/error-report.js';
 import { readFile } from 'node:fs/promises';
@@ -54,7 +55,7 @@ export const SERVER_LIMITS = Object.freeze({
 // `dataDirectory` keeps daily usage sums and the error log (docs/hosting.md);
 // without it both stay in memory. `commit` names the deployed source.
 export function createServer({ rooms = new Rooms(), env = process.env, pollTimeoutMs = 20_000, requestLimit = 2000, rateLimitEntries = 5000,
-  maxInFlight = SERVER_LIMITS.maxInFlight, now = Date.now, limits = {}, dataDirectory = null, commit = 'unknown', statfs, report } = {}) {
+  maxInFlight = SERVER_LIMITS.maxInFlight, now = Date.now, limits = {}, dataDirectory = null, commit = 'unknown', statfs, report, load: loadOptions = {} } = {}) {
   const config = { ...SERVER_LIMITS, maxInFlight, ...limits };
   const trustProxy = env.TRUST_PROXY === '1';
   const rateLimits = new Map(), buckets = new Map(), active = new Map();
@@ -74,6 +75,9 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
   const roomRequests = new RoomRequests({ now, limit: requestLimit, replayed: () => counters.replays++ });
   let draining = false, shutdown;
   const sockets = new Set();
+  const load = new LoadMetrics({ directory: dataDirectory, now, rooms, counters, commit, statfs, report, connections: () => sockets.size,
+    limits: { rooms: rooms.limit, maxInFlight: config.maxInFlight, maxConnections: config.maxConnections, queueBudgetMB: rooms.queueBudgetBytes / 1048576 },
+    incidents: () => usage.recentIncidents(), ...loadOptions });
   const server = http.createServer({
     requestTimeout: config.requestTimeoutMs, headersTimeout: config.headersTimeoutMs, keepAliveTimeout: config.keepAliveTimeoutMs,
     connectionsCheckingInterval: config.connectionsCheckingIntervalMs, maxHeaderSize: config.maxHeaderBytes
@@ -244,7 +248,8 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
   const cleanup = setInterval(() => {
     rooms.sweep();
     roomRequests.sweep();
-    usage.tick();
+    load.sample().catch(error => errors.exception(error, { route: 'load' }));
+    usage.tick(load.values);
     const currentTime = now();
     for (const [key, value] of rateLimits) if (currentTime > value.until) rateLimits.delete(key);
     sweepBuckets(currentTime);
@@ -253,6 +258,7 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
   server.on('connection', socket => { sockets.add(socket); socket.once('close', () => sockets.delete(socket)); });
   server.on('close', () => {
     clearInterval(cleanup);
+    load.eventLoop.stop();
     for (const room of rooms.rooms.values()) rooms.close(room, 'shutdown');
     roomRequests.clear();
     rateLimits.clear();
@@ -260,6 +266,7 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
   });
   server.operatingSnapshot = () => counters.snapshot(rooms, roomRequests.entries.size, draining);
   server.usage = usage;
+  server.load = load;
   server.errors = errors;
   server.reports = reports;
   // Aggregate operating status without addresses, codes or tokens.
@@ -275,7 +282,7 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
       const timer = setTimeout(() => { for (const socket of sockets) socket.destroy(); }, deadlineMs);
       server.close(error => { clearTimeout(timer); if (error) reject(error); else resolve(); });
       server.closeIdleConnections();
-    }).then(() => Promise.all([usage.stop(), errors.flush(), reports.flush()])).then(() => undefined);
+    }).then(() => Promise.all([usage.stop(), load.stop(), errors.flush(), reports.flush()])).then(() => undefined);
     return shutdown;
   };
   return server;
@@ -405,6 +412,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   process.on('unhandledRejection', crashed);
   // A broken data volume must not stop the relay: the sums then stay in memory.
   await server.usage.start().catch(error => console.error(`Nutzungsstatistik ohne Datei: ${error.message}`));
+  await server.load.start().catch(error => console.error(`Lastwerte ohne Datei: ${error.message}`));
   server.listen(port, host, () => console.log('Video Sync relay started.'));
   // Operators pick restart moments from this line (`docker compose logs app`).
   // It repeats every 5 minutes while rooms exist or the count changed.

@@ -124,12 +124,14 @@ Ein fehlgeschlagener Lauf schickt GitHubs Benachrichtigung an die Person, die zu
 
 **Statistik und Fehlerprotokoll:** Mit `DATA_DIR=/data` (Docker-Volume `app_data`) schreibt der Relay
 
-- `usage/<UTC-Tag>.json`: Tagessummen (alle fünf Minuten aktualisiert, 400 Tage aufbewahrt): erstellte und beigetretene Räume, ungenutzte Einladungen, Raumdauer (unter 10 Minuten, unter 1 Stunde, unter 3 Stunden, länger), Endgründe, höchste Zahl gleichzeitiger Räume, Zustellverzögerung weitergeleiteter Nachrichten, API-Antwortzeit, Fehlercodes, abgewiesene Anfragen nach Limit, Aufrufe unbekannter Pfade, Extension-Builds (`Vertrieb/Kanal/Version`), Starts, Abstürze, Arbeitsspeicher und freien Speicherplatz;
+- `usage/<UTC-Tag>.json`: Tagessummen (alle fünf Minuten aktualisiert, 400 Tage aufbewahrt): erstellte und beigetretene Räume, ungenutzte Einladungen, Räume mit bestätigter Szene und mit gemeinsamer Wiedergabe, Raumdauer (unter 10 Minuten, unter 1 Stunde, unter 3 Stunden, länger), Endgründe, Abspielen/Pause/Spulen getrennt nach Gastgeber, Gast und automatisch, Ausrichtungen, Neu-Ausrichtungen, Unterbrechungen, Resync-Anfragen, Pufferpausen, gemeinsame Abspielzeit, Zustellverzögerung weitergeleiteter Nachrichten, API-Antwortzeit, Fehlercodes, abgewiesene Anfragen nach Limit, Aufrufe unbekannter Pfade, Extension-Builds (`Vertrieb/Kanal/Version`), Starts, Abstürze, Tagesspitzen von Räumen, Arbeitsspeicher, Prozessor, Wartezeit und Verbindungen sowie freien Speicherplatz. Die Funktionszähler liest der Relay aus dem Zeitleisten-Zustand des Gastgebers, den er ohnehin prüft und weiterleitet (`server/room-features.js`);
+- `load/<UTC-Tag>.json`: je Stunde Spitzen und Durchschnitte der Last (offene Räume, Personen, Anfragen, Verbindungen, Prozessor und Arbeitsspeicher von Relay und Server, Wartezeit der Event-Loop, vom Hoster belegte Rechenzeit), 30 Tage aufbewahrt (`server/load-metrics.js`);
+- `live.json`: aktuelle Werte, alle 15 Sekunden überschrieben, für das Admin-Dashboard;
 - `errors/<UTC-Tag>.jsonl`: je Fehler eine Zeile mit ID, Zeit, Route, Status und Code; bei Programmfehlern Fehlermeldung und Stack, bei Protokollablehnungen (`INVALID_MESSAGE`, `INVALID_SEQUENCE`, `INCOMPATIBLE_PROTOCOL`, `ROOM_REQUEST_CONFLICT`, `FORBIDDEN_ROLE`) der Aufbau der Nachricht (Feldnamen, Zahlen, Ja/Nein, Protokollbezeichner; Texte nur als Länge). Dazu Rolle, Extension-Build, Raumalter, Warteschlange und Sequenznummern des Mitglieds sowie Zustand und Commit des Servers. Höchstens 300 Einträge pro Tag und 20 je Fehlerart, 30 Tage aufbewahrt;
 - `reports/<UTC-Tag>-<ID>.json`: Fehlerberichte, die jemand im Popup unter Einstellungen → Synchronisationsdiagnose gesendet hat (Diagnose, Versionen, Verbindungszustand, eigene Notiz; Inhalt in `docs/diagnostics-relay.md`), 30 Tage aufbewahrt, höchstens 200 pro Tag;
 - `running`: Marker, solange der Prozess läuft; bleibt er nach einem Ende stehen, zählt der nächste Start einen Absturz.
 
-Niemals enthalten: IP-Adressen, Raumcodes, Sitzungsschlüssel, Request-IDs, Seiteninhalte oder Texte aus Nachrichten. Adressen, Tokens und UUIDs in Fehlermeldungen werden zusätzlich ersetzt.
+Niemals enthalten: IP-Adressen, Raumcodes, Sitzungsschlüssel, Request-IDs, Video-Kennungen, Seiteninhalte oder Texte aus Nachrichten. Adressen, Tokens und UUIDs in Fehlermeldungen werden zusätzlich ersetzt. `tests/server-load.test.js` prüft für `usage`, `load` und `live.json`, dass nur feste Schlüssel, Zahlen, Daten, Commit und Build-Bezeichnungen vorkommen; `PRIVACY.md` beschreibt genau diesen Umfang und muss bei jedem neuen Zähler mitgeändert werden.
 
 Auswerten auf dem Entwicklungsrechner (SSH-Zugang `video-sync`, anders über `VIDEO_SYNC_SSH`):
 
@@ -142,3 +144,22 @@ npm run stats -- --report K7Q2-9F3D   # ein Bericht mit Ablauf der Diagnose
 ```
 
 Zum Nachstellen eines Fehlers: Eintrag mit Route, Code, Nachrichtenaufbau und Sequenznummern lesen, denselben Ablauf als Test gegen `createServer()` schreiben (`tests/server-monitoring.test.js` zeigt das Muster) und den Commit aus `server.commit` auschecken. CPU, Netzwerk und Datenträger des Hosts zeigt zusätzlich das netcup-Kundencenter (SCP) als Grafik.
+
+### Admin-Dashboard
+
+```sh
+npm run admin                      # öffnet http://127.0.0.1:8790/
+npm run admin -- --port 8800 --no-open
+```
+
+Das Dashboard läuft auf dem Entwicklungsrechner (`scripts/admin.js`, Seite in `admin/`) und lauscht nur auf 127.0.0.1; fremde `Host`-Namen werden abgewiesen. Die Daten holt es über SSH mit `deploy/admin-read.sh` (nur `overview`, `live` oder `report <ID>`, ausschließlich lesend); der Server öffnet dafür keinen Port, und die SSH-Weiterleitungen bleiben abgeschaltet. Live-Werte alle 15 Sekunden, die übrige Statistik alle 5 Minuten oder mit „Aktualisieren“.
+
+Es zeigt eine Kapazitätsbewertung (höchster Stundendurchschnitt des Prozessors, Spitzen von Arbeitsspeicher, Räumen, Anfragen und Verbindungen gegen ihre Grenzen: unter 10 % viel Reserve, ab 60 % knapp, ab 80 % oder bei `SERVER_BUSY` zu klein), Live-Werte, Stundenverlauf, Nutzung pro Tag, den Weg vom Raum bis zur gemeinsamen Wiedergabe, Funktionen mit „nicht genutzt“, wer steuert, Raumdauer und Endgründe, Qualität pro Tag, Versionen, Vorfälle, Fehlerprotokoll und Fehlerberichte.
+
+**Weitere Admins** brauchen keinen Shell-Zugang. Ihr öffentlicher Schlüssel kommt mit erzwungenem Befehl in `/root/.ssh/authorized_keys`; damit kann er nur Statistik lesen (keine Shell, keine Weiterleitung):
+
+```
+command="/opt/video-sync/deploy/admin-read.sh",restrict ssh-ed25519 AAAA… name
+```
+
+Sie klonen das Repository, tragen in `~/.ssh/config` einen Host `video-sync` (IP, `User root`, ihr Schlüssel, gepinnter Host-Key) ein und starten `npm run admin`. Entfernen: Zeile löschen.

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Video Sync · Admin</title>
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/components.css">
+  <link rel="stylesheet" href="/admin.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="admin-header">
+    <div>
+      <h1>Video Sync · Admin</h1>
+      <p class="hint" id="server-line">Lade Daten vom Server …</p>
+    </div>
+    <div class="cluster">
+      <div class="periods" role="radiogroup" aria-label="Zeitraum" id="periods"></div>
+      <button type="button" class="secondary compact" id="refresh">Aktualisieren</button>
+    </div>
+  </header>
+  <main class="admin-main" id="main" aria-busy="true">
+    <div class="callout" id="problem" hidden></div>
+
+    <section class="card wide" aria-labelledby="capacity-title">
+      <h2 class="section-title" id="capacity-title">Kapazität</h2>
+      <div id="verdict" class="verdict"></div>
+      <div id="capacity" class="capacity"></div>
+      <p class="hint">Bewertet wird die höchste dauerhafte Auslastung im Zeitraum. Ab 60 % beobachten, ab 80 % oder bei abgelehnten Anfragen größer buchen. Prozessor als höchster Stundendurchschnitt, Speicher und Anzahlen als Spitzenwert.</p>
+    </section>
+
+    <section class="card wide" aria-labelledby="live-title">
+      <h2 class="section-title" id="live-title">Jetzt <span class="hint" id="live-age"></span></h2>
+      <div id="live" class="tiles"></div>
+    </section>
+
+    <section class="card wide" aria-labelledby="load-title">
+      <h2 class="section-title" id="load-title">Auslastung pro Stunde</h2>
+      <p class="hint">Stundenwerte werden 30 Tage aufbewahrt.</p>
+      <div id="load-cpu"></div>
+      <div id="load-rooms"></div>
+    </section>
+
+    <section class="card wide" aria-labelledby="usage-title">
+      <h2 class="section-title" id="usage-title">Nutzung pro Tag</h2>
+      <div id="usage-tiles" class="tiles"></div>
+      <div id="usage-days"></div>
+    </section>
+
+    <section class="card" aria-labelledby="funnel-title">
+      <h2 class="section-title" id="funnel-title">Vom Raum zum gemeinsamen Schauen</h2>
+      <div id="funnel"></div>
+    </section>
+
+    <section class="card" aria-labelledby="features-title">
+      <h2 class="section-title" id="features-title">Funktionen</h2>
+      <p class="hint" id="features-since"></p>
+      <div id="features"></div>
+    </section>
+
+    <section class="card" aria-labelledby="controls-title">
+      <h2 class="section-title" id="controls-title">Wer steuert?</h2>
+      <p class="hint">„Automatisch“ sind Pausen durch Verbindungsabbruch oder Videoende.</p>
+      <div id="controls"></div>
+    </section>
+
+    <section class="card" aria-labelledby="rooms-title">
+      <h2 class="section-title" id="rooms-title">Räume</h2>
+      <h3 class="subtitle">Dauer nach Beitritt</h3>
+      <div id="durations"></div>
+      <h3 class="subtitle">Wie Räume enden</h3>
+      <div id="endings"></div>
+    </section>
+
+    <section class="card wide" aria-labelledby="quality-title">
+      <h2 class="section-title" id="quality-title">Qualität und Fehler pro Tag</h2>
+      <div id="quality"></div>
+    </section>
+
+    <section class="card" aria-labelledby="versions-title">
+      <h2 class="section-title" id="versions-title">Extension-Versionen</h2>
+      <p class="hint">Plätze in Räumen. Die Store-Version 0.6.0.9 meldet ihre Version noch nicht und erscheint als „unknown“.</p>
+      <div id="versions"></div>
+    </section>
+
+    <section class="card" aria-labelledby="incidents-title">
+      <h2 class="section-title" id="incidents-title">Vorfälle der letzten 24 Stunden</h2>
+      <div id="incidents"></div>
+    </section>
+
+    <section class="card wide" aria-labelledby="errors-title">
+      <h2 class="section-title" id="errors-title">Fehlerprotokoll</h2>
+      <div id="errors"></div>
+    </section>
+
+    <section class="card wide" aria-labelledby="reports-title">
+      <h2 class="section-title" id="reports-title">Fehlerberichte</h2>
+      <div id="reports"></div>
+      <pre class="report" id="report" hidden></pre>
+    </section>
+  </main>
+</body>
+</html>
