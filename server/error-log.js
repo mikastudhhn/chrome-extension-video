@@ -28,19 +28,22 @@ export function describeError(error) {
 }
 
 // Keys and protocol identifiers of a rejected payload. Numbers and booleans
-// stay (time, sequence, flags); other strings only report their length.
-export function shapeOf(value, depth = 0) {
+// stay (time, sequence, flags); strings stay only under protocol keys that
+// carry fixed identifiers, any other string reports its length.
+const IDENTIFIER_KEYS = new Set(['type', 'kind', 'phase', 'reason', 'lane', 'code', 'role', 'storage',
+  'capabilities', 'requiredCapabilities', 'distribution', 'channel', 'platform', 'adapter']);
+export function shapeOf(value, depth = 0, key = '') {
   if (value === null || typeof value === 'boolean') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
-  if (typeof value === 'string') return /^[a-z][a-z0-9.-]{0,31}$/.test(value) ? value : `<string:${value.length}>`;
+  if (typeof value === 'string') return IDENTIFIER_KEYS.has(key) && /^[a-z][a-z0-9.-]{0,31}$/.test(value) ? value : `<string:${value.length}>`;
   if (Array.isArray(value)) {
     if (depth >= 4) return `<array:${value.length}>`;
-    return [...value.slice(0, 5).map(item => shapeOf(item, depth + 1)), ...(value.length > 5 ? [`<+${value.length - 5}>`] : [])];
+    return [...value.slice(0, 5).map(item => shapeOf(item, depth + 1, key)), ...(value.length > 5 ? [`<+${value.length - 5}>`] : [])];
   }
   if (typeof value === 'object') {
     if (depth >= 4) return '<object>';
     const keys = Object.keys(value);
-    return Object.fromEntries([...keys.slice(0, 24).map(key => [scrub(key, 32), shapeOf(value[key], depth + 1)]),
+    return Object.fromEntries([...keys.slice(0, 24).map(name => [scrub(name, 32), shapeOf(value[name], depth + 1, name)]),
       ...(keys.length > 24 ? [['<more>', keys.length - 24]] : [])]);
   }
   return `<${typeof value}>`;

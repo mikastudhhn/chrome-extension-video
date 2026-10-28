@@ -164,6 +164,8 @@ test('scrubbing and payload shapes keep identifiers and numbers, never free text
   assert.deepEqual(shapeOf({ type: 'sample', sample: { time: 5, paused: true, adapter: 'HTML5', mediaId: '0f8fad5b-d9cb-469f-a165-70867728950e' }, list: [1, 2, 3, 4, 5, 6, 7] }),
     { type: 'sample', sample: { time: 5, paused: true, adapter: '<string:5>', mediaId: '<string:36>' }, list: [1, 2, 3, 4, 5, '<+2>'] });
   assert.deepEqual(shapeOf({ a: { b: { c: { d: { e: 1 } } } } }), { a: { b: { c: { d: '<object>' } } } });
+  assert.deepEqual(shapeOf({ note: 'private', type: 'ready', capabilities: ['relay-v2'], requestId: 'abc' }),
+    { note: '<string:7>', type: 'ready', capabilities: ['relay-v2'], requestId: '<string:3>' }, 'free text never survives, not even one word');
 });
 
 test('usage sums are kept per UTC day, survive restarts and record unclean exits as crashes', async t => {
