@@ -8,6 +8,8 @@ import { recovery, updateRecovery, completeUpdate } from './background-updates.j
 import { featuresFor } from './features.js';
 import { createDevelopmentSession } from './development.js';
 import { STORE } from './distribution.js';
+import { DEFAULT_SERVER } from './config.js';
+import { buildErrorReport, sendErrorReport, clientInfo, browserInfo, REPORT_LIMITS } from './error-report.js';
 
 let uiQueue = Promise.resolve();
 let uiGeneration = 0;
@@ -43,7 +45,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (interrupt) { uiGeneration++; uiQueue = Promise.resolve(); }
   const generation = uiGeneration;
   const guard = () => { if (ui && generation !== uiGeneration) throw fault('ABORTED'); };
-  const serialize = ui && !['status', 'update-status', 'update-check', 'update-check-opened', 'update-configure'].includes(message.action);
+  // A report upload may take seconds; it must not hold back room actions.
+  const serialize = ui && !['status', 'update-status', 'update-check', 'update-check-opened', 'update-configure', 'diagnostics-report'].includes(message.action);
   const exclusive = ui && ['set-channel', 'local-reload', 'update-install', 'update-restore', 'update-verify-repair'].includes(message.action);
   const run = async () => {
     guard();
@@ -80,6 +83,19 @@ async function handle(message, sender, guard = () => {}) {
       await ensureOffscreen();
       const version = chrome.runtime.getManifest().version;
       return runtimeRequest({ action: message.action, appVersion: version, engineVersion: version });
+    }
+    // Only after the person's click in the popup: the filtered diagnosis, the
+    // reduced session state and their note go to the current or saved server.
+    if (message.action === 'diagnostics-report') {
+      if (sender.url !== chrome.runtime.getURL('popup.html')) throw fault('PERMISSION_DENIED');
+      await ensureOffscreen();
+      const manifest = chrome.runtime.getManifest();
+      const [diagnostics, status, { server }] = await Promise.all([
+        runtimeRequest({ action: 'diagnostics-export', appVersion: manifest.version, engineVersion: manifest.version }),
+        runtimeRequest({ action: 'status' }), chrome.storage.local.get('server')]);
+      const note = typeof message.note === 'string' ? message.note.slice(0, REPORT_LIMITS.noteChars) : '';
+      const report = buildErrorReport({ diagnostics, status, client: clientInfo(manifest, build, STORE), browser: browserInfo(), note });
+      return sendErrorReport(status.room?.server || server || DEFAULT_SERVER, report);
     }
     if (message.action === 'update-configure') {
       await configureUpdates(message.token);

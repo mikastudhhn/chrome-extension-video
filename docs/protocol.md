@@ -38,7 +38,7 @@ Defaults in `server/index.js` (`SERVER_LIMITS`) and `server/rooms.js` (`ROOM_LIM
 | Headers / whole request | 10 s / 15 s (Node backstop); keep-alive 125 s |
 | Receiver queue | 256 events or 256 KiB, then the room closes (`overflow`) |
 | All queues together | 16 MiB, then relay answers 503 `SERVER_BUSY` (retryable) |
-| Per address (IPv4, IPv6 /64) | 50 requests/s (burst 200), 16 concurrent requests, 8 concurrent polls, 30 create/join per minute, 3 open rooms, 10 failed joins per minute |
+| Per address (IPv4, IPv6 /64) | 50 requests/s (burst 200), 16 concurrent requests, 8 concurrent polls, 30 create/join per minute, 3 open rooms, 10 failed joins per minute, 5 error reports per hour |
 | All addresses | 1 failed join per second (burst 30), 500 rooms, 512 requests in flight |
 | Per member | 1200 polls and 1200 relay batches per minute |
 | Rooms | idle 5 min, unjoined 30 min, lifetime 12 h |
@@ -59,6 +59,7 @@ the parked one with `{ "events": [] }` and takes over.
 | `GET /events?after=N` | Long poll for the member's ordered events (Bearer token) |
 | `POST /relay` | Ordered, idempotent message batch to the other member (Bearer token) |
 | `POST /leave` | Close the room for both members (Bearer token) |
+| `POST /reports` | Error report sent from the popup (`extension/error-report.js`, at most 48 KiB, 200 per day); returns `{ ok: true, id }` |
 
 Rooms are addressed only by their six-character code from the alphabet
 `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`; invitations are case-insensitive.

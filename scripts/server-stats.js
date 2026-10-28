@@ -1,22 +1,32 @@
-// `npm run stats [-- --days 14] [-- --errors 10] [-- --json]`: daily usage sums
-// and the latest error entries of the relay server, read over SSH
-// (VIDEO_SYNC_SSH, default host alias `video-sync`; docs/hosting.md).
+// `npm run stats [-- --days 14] [-- --errors 10] [-- --json]`: daily usage sums,
+// the latest error entries and error reports of the relay server, read over
+// SSH (VIDEO_SYNC_SSH, default host alias `video-sync`; docs/hosting.md).
+// `--reports` lists the latest reports, `--report K7Q2-9F3D` shows one.
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { DURATION_BUCKETS, DELIVERY_BUCKETS, LATENCY_BUCKETS } from '../server/operating-counters.js';
 
-const SEPARATOR = '--- errors';
+const SEPARATOR = '--- errors', REPORTS = '--- reports';
+const REPORT_ID = /^[A-Z2-9]{4}-[A-Z2-9]{4}$/;
+const container = (script, directory = '/opt/video-sync') =>
+  `cd ${directory} && docker compose --env-file deploy/.env -f deploy/compose.yaml exec -T app sh -c '${script}'`;
 // Runs inside the app container; reads only the data volume.
-export const remoteCommand = (errorDays, directory = '/opt/video-sync') => [
-  `cd ${directory} && docker compose --env-file deploy/.env -f deploy/compose.yaml exec -T app sh -c`,
-  `'for f in /data/usage/*.json; do [ -f "$f" ] && cat "$f"; done; echo "${SEPARATOR}"; ` +
-  `ls /data/errors/*.jsonl 2>/dev/null | tail -n ${errorDays} | while read -r f; do cat "$f"; done'`].join(' ');
+export const remoteCommand = (errorDays, directory) => container(
+  `for f in /data/usage/*.json; do [ -f "$f" ] && cat "$f"; done; echo "${SEPARATOR}"; ` +
+  `ls /data/errors/*.jsonl 2>/dev/null | tail -n ${errorDays} | while read -r f; do cat "$f"; done; echo "${REPORTS}"; ` +
+  'ls /data/reports/*.json 2>/dev/null | tail -n 20 | while read -r f; do cat "$f"; done', directory);
+export function reportCommand(id, directory) {
+  if (!REPORT_ID.test(id)) throw new Error('Bericht-ID im Format K7Q2-9F3D angeben.');
+  return container(`cat /data/reports/*-${id}.json`, directory);
+}
 
 export function parseDump(text) {
-  const [usage = '', errors = ''] = text.split(`${SEPARATOR}\n`);
+  const [rest = '', reports = ''] = text.split(`${REPORTS}\n`);
+  const [usage = '', errors = ''] = rest.split(`${SEPARATOR}\n`);
   const parse = block => block.split('\n').filter(line => line.trim()).flatMap(line => { try { return [JSON.parse(line)]; } catch { return []; } });
-  return { days: parse(usage).filter(day => day.schema === 1).sort((a, b) => a.day.localeCompare(b.day)), errors: parse(errors) };
+  return { days: parse(usage).filter(day => day.schema === 1).sort((a, b) => a.day.localeCompare(b.day)), errors: parse(errors),
+    reports: parse(reports).filter(report => REPORT_ID.test(report.id)).sort((a, b) => a.at.localeCompare(b.at)) };
 }
 
 const total = values => Object.values(values || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
@@ -80,11 +90,36 @@ export function renderErrors(errors) {
   });
 }
 
+const client = value => [value?.distribution, value?.channel, value?.version].filter(Boolean).join('/') || 'unbekannt';
+export function renderReports(reports) {
+  if (!reports.length) return ['Keine Fehlerberichte.'];
+  return reports.map(report => `${report.id}  ${report.at}  ${client(report.client)}  ${report.session?.phase || '–'}` +
+    `${report.session?.notice ? ` ${report.session.notice}` : ''}  ${(report.note || '').replace(/\s+/g, ' ').slice(0, 60)}`);
+}
+
+// One report with its diagnostic timeline, for reproducing what happened.
+export function renderReport(report) {
+  const time = at => new Date(at).toISOString().slice(11, 23);
+  const events = report.diagnostics?.events || [];
+  return [`Fehlerbericht ${report.id} vom ${report.at}`,
+    `Build: ${client(report.client)} · Chrome ${report.browser?.chrome ?? '?'} · ${report.browser?.platform ?? '?'} · Server ${report.server?.commit ?? '?'}`,
+    `Zustand: ${Object.entries(report.session || {}).map(([key, value]) => `${key}=${value}`).join(' ') || '–'}`,
+    `Notiz: ${report.note || '–'}`, '',
+    `Diagnose (${events.length} Ereignisse, Protokoll ${report.diagnostics?.protocol ?? '?'}, Engine ${report.diagnostics?.engineVersion ?? '?'}):`,
+    ...events.map(event => `  ${time(event.at)}  ${event.kind.padEnd(9)} ${Object.entries(event).filter(([key]) => !['at', 'kind'].includes(key))
+      .map(([key, value]) => `${key}=${value}`).join(' ')}`)];
+}
+
 export function parseArguments(argv) {
-  const options = { days: 14, errors: 10, json: false };
+  const options = { days: 14, errors: 10, json: false, reports: false, report: null };
   for (let index = 0; index < argv.length; index++) {
     const name = argv[index];
     if (name === '--json') options.json = true;
+    else if (name === '--reports') options.reports = true;
+    else if (name === '--report') {
+      options.report = String(argv[++index] || '').toUpperCase();
+      if (!REPORT_ID.test(options.report)) throw new Error('--report braucht eine Bericht-ID im Format K7Q2-9F3D.');
+    }
     else if (name === '--days' || name === '--errors') {
       const value = Number(argv[++index]);
       if (!Number.isInteger(value) || value < 0 || value > 400) throw new Error(`${name} braucht eine Zahl von 0 bis 400.`);
@@ -97,15 +132,24 @@ export function parseArguments(argv) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const options = parseArguments(process.argv.slice(2));
   const host = process.env.VIDEO_SYNC_SSH || 'video-sync';
-  // Error entries of the last seven days; the server keeps 30.
-  const result = spawnSync('ssh', ['-o', 'BatchMode=yes', host, remoteCommand(7)],
-    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (result.error || result.status !== 0) {
-    console.error(`Server nicht lesbar über ssh ${host}: ${result.error?.message || result.stderr.trim() || `Exit-Status ${result.status}`}`);
-    process.exit(1);
+  const remote = command => {
+    const result = spawnSync('ssh', ['-o', 'BatchMode=yes', host, command], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    if (result.error || result.status !== 0) {
+      console.error(`Server nicht lesbar über ssh ${host}: ${result.error?.message || result.stderr.trim() || `Exit-Status ${result.status}`}`);
+      process.exit(1);
+    }
+    return result.stdout;
+  };
+  if (options.report) {
+    const report = JSON.parse(remote(reportCommand(options.report)));
+    console.log(options.json ? JSON.stringify(report, null, 2) : renderReport(report).join('\n'));
+  } else {
+    // Error entries of the last seven days; the server keeps 30.
+    const { days, errors, reports } = parseDump(remote(remoteCommand(7)));
+    const shown = { days: days.slice(-options.days), errors: errors.slice(-options.errors), reports };
+    if (options.json) console.log(JSON.stringify(shown, null, 2));
+    else if (options.reports) console.log(renderReports(reports).join('\n'));
+    else console.log([...renderDays(shown.days), '', `Letzte Fehlereinträge (${shown.errors.length}):`, ...renderErrors(shown.errors),
+      `Letzte Fehlerberichte (${reports.length}, Details: npm run stats -- --report <ID>):`, ...renderReports(reports)].join('\n'));
   }
-  const { days, errors } = parseDump(result.stdout);
-  const shown = { days: days.slice(-options.days), errors: errors.slice(-options.errors) };
-  if (options.json) console.log(JSON.stringify(shown, null, 2));
-  else console.log([...renderDays(shown.days), '', `Letzte Fehlereinträge (${shown.errors.length}):`, ...renderErrors(shown.errors)].join('\n'));
 }

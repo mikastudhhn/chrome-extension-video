@@ -8,8 +8,10 @@ export const MAX_BATCH_BYTES = 8 * 1024;
 const encoder = new TextEncoder();
 // The worker owns one ordered, authenticated HTTPS connection per room member.
 export class Signaling {
-  constructor(base, onEvent, onError, onStatus = () => {}) {
+  // `client` names this build in create/join handshakes ({ version, distribution, channel }).
+  constructor(base, onEvent, onError, onStatus = () => {}, client = null) {
     this.base = base;
+    this.client = client;
     this.onEvent = onEvent;
     this.onError = onError;
     this.onStatus = onStatus;
@@ -79,7 +81,7 @@ export class Signaling {
     if (offer?.version !== 1 || typeof offer.instance !== 'string' || !/^[0-9a-f-]{36}$/.test(offer.instance) ||
         !Number.isSafeInteger(offer.expiresAt) || typeof offer.proof !== 'string' || !/^[0-9a-f]{64}$/.test(offer.proof)) throw fault('INCOMPATIBLE_PROTOCOL');
     const handshake = { protocol: PROTOCOL, capabilities: CAPABILITIES, roomRequest: { id: crypto.randomUUID(),
-      instance: offer.instance, expiresAt: offer.expiresAt, proof: offer.proof } };
+      instance: offer.instance, expiresAt: offer.expiresAt, proof: offer.proof }, ...(this.client ? { client: this.client } : {}) };
     let member;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {

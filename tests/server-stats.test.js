@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDump, renderDays, renderErrors, p95, parseArguments, remoteCommand } from '../scripts/server-stats.js';
+import { parseDump, renderDays, renderErrors, renderReports, renderReport, p95, parseArguments, remoteCommand, reportCommand } from '../scripts/server-stats.js';
 import { DELIVERY_BUCKETS } from '../server/operating-counters.js';
 
 const day = (name, extra = {}) => ({ schema: 1, day: name, commit: 'abc1234', updatedAt: `${name}T23:59:00.000Z`, starts: 1, crashes: 0,
@@ -16,7 +16,10 @@ test('the dump is split into usage days and error entries; broken lines are skip
   const { days, errors } = parseDump(text);
   assert.deepEqual(days.map(entry => entry.day), ['2026-10-28', '2026-10-29']);
   assert.deepEqual(errors, [{ at: 'a', id: '1' }]);
-  assert.deepEqual(parseDump(''), { days: [], errors: [] });
+  assert.deepEqual(parseDump(''), { days: [], errors: [], reports: [] });
+  const withReports = parseDump([JSON.stringify(day('2026-10-28')), '--- errors', '--- reports',
+    JSON.stringify({ id: 'K7Q2-9F3D', at: '2026-10-28T20:00:00Z' }), JSON.stringify({ id: '../x', at: 'z' }), ''].join('\n'));
+  assert.deepEqual(withReports.reports.map(report => report.id), ['K7Q2-9F3D']);
 });
 
 test('p95 names the bucket that holds the 95th percentile', () => {
@@ -49,8 +52,25 @@ test('error entries show their context for reproduction', () => {
   assert.deepEqual(renderErrors([]), ['Keine Fehlereinträge.']);
 });
 
+test('reports render as a list and as a timeline for reproduction', () => {
+  const report = { id: 'K7Q2-9F3D', at: '2026-10-28T20:00:00.000Z', client: { distribution: 'chrome-web-store', channel: 'stable', version: '0.6.0.9' },
+    browser: { chrome: 141, platform: 'mac' }, session: { phase: 'interrupted', notice: 'NETWORK_ERROR' }, server: { commit: 'abc1234' },
+    note: 'Nach dem\nSpulen lief es weiter.', diagnostics: { protocol: 3, engineVersion: '0.6.0.9',
+      events: [{ at: Date.parse('2026-10-28T19:59:58.250Z'), kind: 'transport', lane: 'receive', reconnecting: true }] } };
+  assert.deepEqual(renderReports([report]), ['K7Q2-9F3D  2026-10-28T20:00:00.000Z  chrome-web-store/stable/0.6.0.9  interrupted NETWORK_ERROR  Nach dem Spulen lief es weiter.']);
+  const lines = renderReport(report);
+  assert.equal(lines[1], 'Build: chrome-web-store/stable/0.6.0.9 · Chrome 141 · mac · Server abc1234');
+  assert.equal(lines[2], 'Zustand: phase=interrupted notice=NETWORK_ERROR');
+  assert.equal(lines.at(-1), '  19:59:58.250  transport lane=receive reconnecting=true');
+  assert.deepEqual(renderReports([]), ['Keine Fehlerberichte.']);
+});
+
 test('arguments and the remote command are fixed and bounded', () => {
-  assert.deepEqual(parseArguments(['--days', '30', '--errors', '5', '--json']), { days: 30, errors: 5, json: true });
+  assert.deepEqual(parseArguments(['--days', '30', '--errors', '5', '--json']), { days: 30, errors: 5, json: true, reports: false, report: null });
+  assert.equal(parseArguments(['--report', 'k7q2-9f3d']).report, 'K7Q2-9F3D');
+  assert.throws(() => parseArguments(['--report', '$(rm -rf /)']), /Bericht-ID/);
+  assert.throws(() => reportCommand('A;B'), /Bericht-ID/);
+  assert.match(reportCommand('K7Q2-9F3D'), /cat \/data\/reports\/\*-K7Q2-9F3D\.json'$/);
   assert.throws(() => parseArguments(['--days', 'x']), /Zahl/);
   assert.throws(() => parseArguments(['--host', 'x']), /Unbekannte Option/);
   const command = remoteCommand(7);

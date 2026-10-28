@@ -1,6 +1,6 @@
 # Chrome Web Store
 
-Video Sync wird zusätzlich als **nicht gelisteter** Eintrag im Chrome Web Store verteilt: Nur wer den Link hat, findet ihn; Chrome installiert und aktualisiert die Erweiterung selbst, ohne Entwicklermodus. Die GitHub-Pakete mit integriertem Updater bleiben für Experimental und Tests bestehen.
+Video Sync wird zusätzlich als **privater** Eintrag im Chrome Web Store verteilt (Artikel-ID `fpcepcfnpbkmkepdhhbhfaadddkmidfh`): Nur die im Dashboard unter **Einstellungen → Trusted Tester** eingetragenen Google-Konten sehen und installieren ihn; Chrome installiert und aktualisiert die Erweiterung selbst, ohne Entwicklermodus. Auch private Einträge werden vor jeder Veröffentlichung geprüft. Die GitHub-Pakete mit integriertem Updater bleiben für Experimental und Tests bestehen.
 
 ## Paket
 
@@ -41,7 +41,7 @@ Die Store-Installation hat eine eigene Erweiterungs-ID und eigenen Speicher. Wer
 > Gut zu wissen:
 > • Es werden keine Videos oder Töne übertragen. Jede Person schaut ihre eigene Quelle mit ihrem eigenen Zugang.
 > • Über den Verbindungsserver gehen nur Abspielzeit, Pause/Play und ein Raumcode – keine Seiteninhalte, Adressen oder Verläufe.
-> • Keine Konten, keine Werbung, kein Tracking.
+> • Keine Konten, keine Werbung, kein Tracking. Fehlerberichte gehen nur auf deinen Klick an den Verbindungsserver.
 > • Funktioniert mit HTML5-Videoplayern, auch in eingebetteten Frames. Zugriff auf Websites wird erst nach deiner Freigabe genutzt.
 >
 > Quellcode (MIT): https://github.com/mikastudhhn/chrome-extension-video
@@ -62,13 +62,15 @@ Die Store-Installation hat eine eigene Erweiterungs-ID und eigenen Speicher. Wer
 - Remote-Code: **Nein.** Alle Skripte sind im Paket enthalten; vom Server kommen nur Daten.
 - Datennutzung, empfohlene Angaben (deckungsgleich mit `PRIVACY.md`):
   - **Standort** (IP-Adresse): technisch für die Serververbindung nötig, nur im Arbeitsspeicher zur Missbrauchsbegrenzung, nicht protokolliert.
-  - **Nutzeraktivität**: Play, Pause und Spulen werden an die zweite Person im Raum übertragen.
+  - **Nutzeraktivität**: Play, Pause und Spulen werden an die zweite Person im Raum übertragen. Ein Fehlerbericht (nur nach Klick) enthält Zustandswechsel, Fehlercodes und eine optionale Notiz.
   - Alle drei Erklärungen bestätigen (kein Verkauf, keine zweckfremde Nutzung, keine Kreditwürdigkeit).
 - Datenschutzerklärung: https://github.com/mikastudhhn/chrome-extension-video/blob/main/PRIVACY.md
 
 **Vertrieb**
 
-- Sichtbarkeit: **Nicht gelistet** · Regionen: alle
+- Sichtbarkeit: **Privat** (nur Trusted Tester) · Regionen: alle · Kostenlos
+- Trusted Tester: Google-Konten der Testpersonen unter **Einstellungen**, durch Kommas getrennt; Kontakt-E-Mail bestätigt; kein Händler.
+- Installationslink für Testpersonen: https://chromewebstore.google.com/detail/fpcepcfnpbkmkepdhhbhfaadddkmidfh (funktioniert erst nach der Prüfung und nur für eingetragene Konten).
 
 **Testanleitung für die Prüfung**
 

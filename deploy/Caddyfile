@@ -27,8 +27,14 @@
 			profile shortlived
 		}
 	}
-	# Same limit as the relay's largest accepted body (16 KiB relay batch).
-	request_body {
+	# Same limits as the relay's largest accepted bodies: 16 KiB relay batch,
+	# 48 KiB error report sent from the popup.
+	@report path /reports
+	request_body @report {
+		max_size 48KiB
+	}
+	@other not path /reports
+	request_body @other {
 		max_size 16KiB
 	}
 	reverse_proxy app:8787 {

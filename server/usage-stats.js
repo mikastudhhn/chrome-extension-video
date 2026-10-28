@@ -8,14 +8,14 @@ import { dayKey } from './error-log.js';
 export const USAGE_LIMITS = Object.freeze({
   flushMs: 300_000, // a crash loses at most five minutes of counts
   usageDays: 400,
-  errorDays: 30,
+  errorDays: 30, // error log and error reports
   incidentMs: 86_400_000, // /health reports incidents of the last 24 hours
   limitedPerHour: 500, // rejected by admission limits: likely a bot or an attack
   diskFreeMB: 1024,
   rssMB: 200 // the container limit is 256 MB
 });
 // Reasons are fixed words; /health exposes their latest time only.
-export const INCIDENTS = Object.freeze(['error', 'crash', 'limits', 'capacity', 'disk', 'memory']);
+export const INCIDENTS = Object.freeze(['error', 'crash', 'limits', 'capacity', 'disk', 'memory', 'report']);
 
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 // a - b, key by key; counters only grow within one process.
@@ -140,10 +140,10 @@ export class UsageStats {
   async prune() {
     if (!this.directory) return;
     const today = Date.parse(`${this.day}T00:00:00Z`);
-    for (const [folder, days] of [['usage', USAGE_LIMITS.usageDays], ['errors', USAGE_LIMITS.errorDays]]) {
+    for (const [folder, days] of [['usage', USAGE_LIMITS.usageDays], ['errors', USAGE_LIMITS.errorDays], ['reports', USAGE_LIMITS.errorDays]]) {
       const names = await readdir(join(this.directory, folder)).catch(() => []);
       for (const name of names) {
-        const day = /^(\d{4}-\d{2}-\d{2})\.jsonl?$/.exec(name)?.[1];
+        const day = /^(\d{4}-\d{2}-\d{2})(?:-[A-Z2-9]{4}-[A-Z2-9]{4})?\.jsonl?$/.exec(name)?.[1];
         if (day && today - Date.parse(`${day}T00:00:00Z`) >= days * 86_400_000) await rm(join(this.directory, folder, name), { force: true });
       }
     }

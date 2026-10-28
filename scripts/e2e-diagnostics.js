@@ -129,6 +129,13 @@ try {
       await popup.waitForFunction(() => document.getElementById('diagnostics-feedback').textContent.includes('Lokale Diagnose gelöscht'));
       assert.deepEqual((await exported('diagnostics-after-clear.json', 'Space')).events, []);
     });
+    await record('a sent report shows its ID and clears the note', async () => {
+      await popup.locator('#diagnostics-note').fill('Testbericht aus dem Browser-Test.');
+      await popup.locator('#diagnostics-send').click();
+      await popup.waitForFunction(() => document.getElementById('diagnostics-feedback').textContent.includes('Bericht-ID'));
+      assert.match(await feedback.textContent(), /^Fehlerbericht gesendet\. Bericht-ID: [A-Z2-9]{4}-[A-Z2-9]{4}\./);
+      assert.equal(await popup.locator('#diagnostics-note').inputValue(), '');
+    });
     await record('failed export and deletion never display raw errors or a false success', async () => {
       // Explicit presentation fixture, not a simulated successful runtime operation.
       await popup.evaluate(() => {
@@ -142,6 +149,8 @@ try {
         await popup.waitForFunction(() => document.getElementById('diagnostics-feedback').textContent.startsWith('Export nicht möglich'));
         await clearButton.click();
         await popup.waitForFunction(() => document.getElementById('diagnostics-feedback').textContent.startsWith('Löschen nicht bestätigt'));
+        await popup.locator('#diagnostics-send').click();
+        await popup.waitForFunction(() => document.getElementById('diagnostics-feedback').textContent.startsWith('Senden nicht möglich'));
         assert.ok(!(await feedback.textContent()).includes('PRIVATE_TOKEN'));
         await popup.screenshot({ path: join(evidence, 'diagnostics-error.png') });
       } finally {

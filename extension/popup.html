@@ -248,12 +248,20 @@
           <details id="diagnostics-panel" class="diagnostics-panel">
             <summary id="diagnostics-summary">Synchronisationsdiagnose</summary>
             <div class="stack-tight">
-              <p class="hint" id="diagnostics-retention">Nur lokal, höchstens 30 Minuten und 200 Ereignisse. Beim Neuladen der Engine wird der Puffer geleert.</p>
-              <p id="diagnostics-privacy" class="hint">Der Export enthält Versionen, Zustandswechsel und Messwerte, keine Zugangsdaten, Einladungen, Raumcodes oder Videoinhalte.</p>
+              <p class="hint" id="diagnostics-retention">Bleibt im Browser, bis du sie exportierst oder sendest: höchstens 30 Minuten und 200 Ereignisse. Beim Neuladen der Engine wird der Puffer geleert.</p>
+              <p id="diagnostics-privacy" class="hint">Die Diagnose enthält Versionen, Zustandswechsel und Messwerte, keine Zugangsdaten, Einladungen, Raumcodes, Adressen oder Videoinhalte.</p>
               <p id="diagnostics-availability" class="hint">Diese Engine unterstützt die lokale Diagnose noch nicht.</p>
               <div class="diagnostics-actions">
                 <button id="diagnostics-export" type="button" class="secondary full-width" aria-describedby="diagnostics-retention diagnostics-privacy" disabled>Diagnose exportieren</button>
                 <button id="diagnostics-clear" type="button" class="text-button full-width" aria-describedby="diagnostics-retention" disabled>Diagnose löschen</button>
+              </div>
+              <div class="field">
+                <label for="diagnostics-note">Fehler melden: Was ist passiert? (optional)</label>
+                <textarea id="diagnostics-note" rows="3" maxlength="500" aria-describedby="diagnostics-send-privacy" placeholder="z. B. Nach dem Spulen lief das Video bei der anderen Person weiter." disabled></textarea>
+                <p id="diagnostics-send-privacy" class="hint">„Fehlerbericht senden“ überträgt diese Diagnose, die Versionen und deinen Text an den Verbindungsserver und zeigt eine Bericht-ID. Bitte keine persönlichen Daten eintragen.</p>
+              </div>
+              <div class="diagnostics-actions">
+                <button id="diagnostics-send" type="button" class="secondary full-width" aria-describedby="diagnostics-send-privacy diagnostics-privacy" disabled>Fehlerbericht senden</button>
               </div>
               <p class="hint" id="diagnostics-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
             </div>
