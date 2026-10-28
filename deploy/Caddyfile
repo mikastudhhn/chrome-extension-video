@@ -12,6 +12,8 @@
 			read_body 10s
 			idle 2m
 		}
+		# The relay accepts 8 KiB of headers; Caddy would otherwise parse 1 MB.
+		max_header_size 16KB
 	}
 }
 

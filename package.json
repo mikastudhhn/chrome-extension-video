@@ -12,6 +12,7 @@
     "dev": "node scripts/development-build.js --watch",
     "dev:prepare": "node scripts/development-build.js",
     "soak": "node scripts/soak.js",
+    "stats": "node scripts/server-stats.js",
     "manual-test": "node scripts/manual-test.js",
     "setup:git": "node scripts/install-hooks.js",
     "promote": "node scripts/promote.js",

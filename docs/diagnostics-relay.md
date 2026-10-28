@@ -58,11 +58,14 @@ wiederhergestellt ist. Die Wiederholung authentifizierter Relay-Batches bleibt u
 Der Server stellt im Prozess `server.operatingSnapshot()` bereit, ohne neuen
 HTTP-Metrikendpunkt. Es enthält nur feste Zähler/Gruppen: aktive Räume/Mitglieder,
 laufende und abgeschlossene Anfragen, Abbrüche, Statusgruppen, Gesamtlatenz/Maximum,
-Idempotenz- und Batchwiederholungen und Raum-Schließgründe. HTTP-Latenz umfasst bei
-Long Polls die absichtliche Wartezeit und ist deshalb keine reine Netzwerklatenz.
+Idempotenz- und Batchwiederholungen, Raum-Schließgründe, erstellte/beigetretene
+Räume, Raumdauer, Zustellverzögerung, API-Latenz, Fehlercodes, Routenklassen und
+Extension-Builds. HTTP-Latenz umfasst bei Long Polls die absichtliche Wartezeit und
+ist deshalb keine reine Netzwerklatenz; die API-Latenz zählt Polls nicht mit.
 Die Zähler beginnen nach Prozessneustart bei null. SIGTERM/SIGINT schreiben einen
-aggregierten Abschlussbericht; rohe Ausnahme- oder Anfrageinhalte werden nicht
-protokolliert. Ein lokaler Betreiber kann Snapshots bei Bedarf selbst abfragen.
+aggregierten Abschlussbericht. Mit `DATA_DIR` werden Tagessummen und ein
+begrenztes technisches Fehlerprotokoll gespeichert (`docs/hosting.md`, Abschnitt
+„Überwachung und Statistik“); ohne `DATA_DIR` (lokal, Tests) bleibt alles im Speicher.
 
 Begrenzungen: 500 Räume, 2.000 Idempotenz-Ergebnisse, 5.000 Rate-Limit-Einträge,
 2.048 gleichzeitig laufende HTTP-Anfragen sowie die vorhandenen Body-/Queue-
@@ -73,8 +76,8 @@ konfigurierten vertrauenswürdigen Proxy voraus.
 Beim Herunterfahren nimmt der Server keine neue Arbeit an, schließt Räume,
 weckt Long Polls und lässt laufende Antworten auslaufen. Nach spätestens fünf
 Sekunden werden verbleibende Sockets geschlossen. Nach Neustart benötigen beide
-Personen einen neuen Raum. Es gibt keinen Redis-/Clusterbetrieb oder eingerichteten
-externen Verfügbarkeitsmonitor. Kein Server wurde mit dieser Änderung deployt.
+Personen einen neuen Raum. Es gibt keinen Redis-/Clusterbetrieb. Den externen
+Verfügbarkeitsmonitor beschreibt `docs/hosting.md`.
 
 ## Nachweise und Grenzen
 

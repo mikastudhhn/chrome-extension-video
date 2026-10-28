@@ -2,15 +2,21 @@ import http from 'node:http';
 import { isIP } from 'node:net';
 import { RoomRequests } from './room-requests.js';
 import { OperatingCounters } from './operating-counters.js';
+import { ErrorLog, shapeOf } from './error-log.js';
+import { UsageStats } from './usage-stats.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { resolve, extname } from 'node:path';
+import { resolve, extname, join } from 'node:path';
 import { Rooms, RoomError, publicEvent } from './rooms.js';
 import { PROTOCOL, CAPABILITIES } from '../extension/protocol.js';
 import { errorResponse, fault } from '../extension/runtime-errors.js';
 
 const root = resolve(fileURLToPath(new URL('../demo/', import.meta.url)));
 const contentTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webm': 'video/webm', '.svg': 'image/svg+xml' };
+const PUBLIC_ASSET = /^\/(?:$|index\.html(?:\?|$)|style\.css(?:\?|$)|demo\.js(?:\?|$)|scene-[ab]\.webm(?:\?|$))/;
+// Rejections that point at a client/server mismatch get an error log entry
+// with the payload's shape; ordinary ends, limits and bots are only counted.
+const LOGGED_REJECTIONS = new Set(['INVALID_MESSAGE', 'INVALID_SEQUENCE', 'INCOMPATIBLE_PROTOCOL', 'ROOM_REQUEST_CONFLICT', 'FORBIDDEN_ROLE']);
 
 // Documented in docs/hosting.md and docs/protocol.md. Address limits count an
 // IPv4 address or an IPv6 /64. Without TRUST_PROXY, loopback clients (local
@@ -41,14 +47,24 @@ export const SERVER_LIMITS = Object.freeze({
   lookupFailureBurst: 30
 });
 
+// `dataDirectory` keeps daily usage sums and the error log (docs/hosting.md);
+// without it both stay in memory. `commit` names the deployed source.
 export function createServer({ rooms = new Rooms(), env = process.env, pollTimeoutMs = 20_000, requestLimit = 2000, rateLimitEntries = 5000,
-  maxInFlight = SERVER_LIMITS.maxInFlight, now = Date.now, limits = {} } = {}) {
+  maxInFlight = SERVER_LIMITS.maxInFlight, now = Date.now, limits = {}, dataDirectory = null, commit = 'unknown', statfs, report } = {}) {
   const config = { ...SERVER_LIMITS, maxInFlight, ...limits };
   const trustProxy = env.TRUST_PROXY === '1';
   const rateLimits = new Map(), buckets = new Map(), active = new Map();
   const lookupBudget = { tokens: config.lookupFailureBurst, at: now() };
   const counters = new OperatingCounters();
   rooms.counters = counters;
+  const started = now();
+  const usage = new UsageStats({ directory: dataDirectory, now, counters, rooms, commit, statfs, report });
+  const errors = new ErrorLog({ directory: dataDirectory && join(dataDirectory, 'errors'), now, counters, report,
+    onIncident: reason => usage.incident(reason), context: () => {
+      const { activeRooms, joinedRooms, activeMembers, queuedBytes } = rooms.status();
+      return { commit, uptimeS: Math.round((now() - started) / 1000), rssMB: Math.round(process.memoryUsage().rss / 1048576),
+        inFlight: counters.inFlight, activeRooms, joinedRooms, activeMembers, queuedBytes };
+    } });
   const roomRequests = new RoomRequests({ now, limit: requestLimit, replayed: () => counters.replays++ });
   let draining = false, shutdown;
   const sockets = new Set();
@@ -56,9 +72,10 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
     requestTimeout: config.requestTimeoutMs, headersTimeout: config.headersTimeoutMs, keepAliveTimeout: config.keepAliveTimeoutMs,
     connectionsCheckingInterval: config.connectionsCheckingIntervalMs, maxHeaderSize: config.maxHeaderBytes
   }, async (request, response) => {
-    const finish = counters.begin();
-    response.once('finish', () => finish(response.statusCode, false));
-    response.once('close', () => finish(response.statusCode, !response.writableFinished));
+    const route = routeName(request.method, request.url);
+    const finish = counters.begin(route);
+    response.once('finish', () => finish(response.statusCode, false, response.failureCode));
+    response.once('close', () => finish(response.statusCode, !response.writableFinished, response.failureCode));
     if (draining || counters.inFlight > config.maxInFlight) {
       json(response, 503, errorResponse(fault(draining ? 'SERVER_DRAINING' : 'SERVER_BUSY', 503))); return;
     }
@@ -88,7 +105,7 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
     const allowedOrigins = (env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
     // Extension requests have explicit host permissions. Web origins require an allowlist.
     const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/.test(origin || '');
-    const publicAsset = request.method === 'GET' && /^\/(?:$|index\.html(?:\?|$)|style\.css(?:\?|$)|demo\.js(?:\?|$)|scene-[ab]\.webm(?:\?|$))/.test(request.url);
+    const publicAsset = request.method === 'GET' && PUBLIC_ASSET.test(request.url);
     if (origin && !publicAsset && !extensionOrigin && !allowedOrigins.includes(origin)) {
       json(response, 403, errorResponse(fault('FORBIDDEN_ORIGIN', 403))); return;
     }
@@ -101,20 +118,23 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
       response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       response.writeHead(204).end(); return;
     }
+    // Error context: the authenticated member and the parsed payload, if any.
+    let member = null, payload;
     try {
       const url = new URL(request.url, 'http://localhost');
       if (url.pathname === '/health' && request.method === 'GET') {
-        json(response, 200, { ok: true, protocol: PROTOCOL, capabilities: CAPABILITIES, roomRequests: roomRequests.offer() }); return;
+        // `incidents`: latest time per fixed reason in the last 24 hours, for the external monitor.
+        json(response, 200, { ok: true, protocol: PROTOCOL, capabilities: CAPABILITIES, roomRequests: roomRequests.offer(), incidents: usage.recentIncidents() }); return;
       }
       if (request.method === 'POST' && (url.pathname === '/rooms' || /^\/rooms\/[A-Z2-9]{6}\/join$/.test(url.pathname))) {
         // Known successful replays do not consume the shared-IP admission budget.
         // New mutations and rejected handshakes still do; lookup never creates a room.
-        let charged = false, member;
+        let charged = false, seat;
         const admit = () => { charged = true; limitRequests(client, config.admissionsPerMinute, 'admission'); };
         try {
-          const handshake = await body(request, response, config.handshakeBodyBytes, config.bodyTimeoutMs);
+          const handshake = payload = await body(request, response, config.handshakeBodyBytes, config.bodyTimeoutMs);
           if (draining) throw fault('SERVER_DRAINING', 503);
-          member = roomRequests.run(handshake, url.pathname, rooms, () => {
+          seat = roomRequests.run(handshake, url.pathname, rooms, () => {
             admit();
             return url.pathname === '/rooms' ? rooms.create(handshake, exempt ? undefined : client) : lookup(url.pathname.split('/')[2], handshake);
           });
@@ -122,11 +142,11 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
           if (!charged) admit();
           throw error;
         }
-        json(response, 201, { ...member, protocol: PROTOCOL, capabilities: CAPABILITIES }); return;
+        json(response, 201, { ...seat, protocol: PROTOCOL, capabilities: CAPABILITIES }); return;
       }
       if (['/events', '/relay', '/leave'].includes(url.pathname)) {
         const token = request.headers.authorization?.replace(/^Bearer /, '');
-        const member = rooms.authenticate(token);
+        member = rooms.authenticate(token);
         if (request.method === 'GET' && url.pathname === '/events') {
           limitRequests(`events:${member.token}`, config.pollsPerMinute, 'polls');
           const abort = new AbortController();
@@ -137,7 +157,8 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
         }
         if (request.method === 'POST' && url.pathname === '/relay') {
           limitRequests(`relay:${member.token}`, config.relaysPerMinute, 'relay');
-          rooms.relayData(member, await body(request, response, config.relayBodyBytes, config.bodyTimeoutMs));
+          payload = await body(request, response, config.relayBodyBytes, config.bodyTimeoutMs);
+          rooms.relayData(member, payload);
           json(response, 200, { ok: true }); return;
         }
         if (request.method === 'POST' && url.pathname === '/leave') {
@@ -145,8 +166,9 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
         }
       }
       if (request.method === 'GET') {
-        const route = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
-        const path = resolve(root, `.${route}`);
+        let file;
+        try { file = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname); } catch { throw new RoomError(404, 'NOT_FOUND'); }
+        const path = resolve(root, `.${file}`);
         if (!path.startsWith(`${root}/`) || !contentTypes[extname(path)]) throw new RoomError(404, 'NOT_FOUND');
         const data = await readFile(path);
         response.setHeader('Content-Type', contentTypes[extname(path)]);
@@ -171,8 +193,20 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
       throw new RoomError(404, 'NOT_FOUND');
     } catch (error) {
       const status = error.status || (error.code === 'ENOENT' ? 404 : 500);
-      // Error text may contain request data; local counters carry only categories.
-      if (!response.headersSent) json(response, status, errorResponse(error.code === 'ENOENT' ? fault('NOT_FOUND', 404) : error.code && error.category ? error : fault('SERVER_ERROR', status)));
+      const known = error.code === 'ENOENT' || (error.code && error.category);
+      // Error text may contain request data: responses carry only our own text,
+      // the error log a scrubbed message, the stack and fixed context fields.
+      if (!known) errors.exception(error, context(status));
+      else if (LOGGED_REJECTIONS.has(error.code)) errors.rejected(error.code, context(status));
+      if (!response.headersSent) json(response, status, errorResponse(error.code === 'ENOENT' ? fault('NOT_FOUND', 404) : known ? error : fault('SERVER_ERROR', status)));
+    }
+
+    function context(status) {
+      const room = member?.room;
+      return { route, method: request.method, status,
+        ...(member ? { member: { role: member.role, client: member.client, joined: room.members.length === 2,
+          roomAgeS: Math.round((now() - room.created) / 1000), queued: member.events.length, sequence: member.sequence, sentSequence: member.sentSequence } } : {}),
+        ...(payload !== undefined ? { request: { shape: shapeOf(payload) } } : {}) };
     }
 
     // Join lookups are the only way to probe invitation codes. Failed lookups
@@ -198,6 +232,7 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
   const cleanup = setInterval(() => {
     rooms.sweep();
     roomRequests.sweep();
+    usage.tick();
     const currentTime = now();
     for (const [key, value] of rateLimits) if (currentTime > value.until) rateLimits.delete(key);
     sweepBuckets(currentTime);
@@ -212,6 +247,8 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
     buckets.clear();
   });
   server.operatingSnapshot = () => counters.snapshot(rooms, roomRequests.entries.size, draining);
+  server.usage = usage;
+  server.errors = errors;
   // Aggregate operating status without addresses, codes or tokens.
   server.status = () => {
     const memory = process.memoryUsage();
@@ -225,7 +262,7 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
       const timer = setTimeout(() => { for (const socket of sockets) socket.destroy(); }, deadlineMs);
       server.close(error => { clearTimeout(timer); if (error) reject(error); else resolve(); });
       server.closeIdleConnections();
-    });
+    }).then(() => Promise.all([usage.stop(), errors.flush()])).then(() => undefined);
     return shutdown;
   };
   return server;
@@ -269,6 +306,17 @@ export function createServer({ rooms = new Rooms(), env = process.env, pollTimeo
       if (bucket.tokens + Math.max(0, currentTime - bucket.at) * config.floodRatePerSecond / 1000 >= config.floodBurst) buckets.delete(key);
     }
   }
+}
+
+// Fixed route names for counters and error context; never the raw path.
+function routeName(method, url = '') {
+  const path = url.split('?')[0];
+  if (method === 'OPTIONS') return 'preflight';
+  if (path === '/health') return 'health';
+  if (path === '/rooms') return 'create';
+  if (/^\/rooms\/[A-Z2-9]{6}\/join$/.test(path)) return 'join';
+  if (['/events', '/relay', '/leave'].includes(path)) return path.slice(1);
+  return method === 'GET' && PUBLIC_ASSET.test(url) ? 'page' : 'unknown';
 }
 
 // TRUST_PROXY=1: the reverse proxy overwrites X-Real-IP with the TCP peer
@@ -328,6 +376,7 @@ function body(request, response, limit, timeoutMs) {
 }
 
 function json(response, status, value) {
+  if (value?.failure?.code) response.failureCode = value.failure.code;
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
   response.writeHead(status).end(JSON.stringify(value));
 }
@@ -335,7 +384,12 @@ function json(response, status, value) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 8787);
   const host = process.env.HOST || '127.0.0.1';
-  const server = createServer();
+  const server = createServer({ dataDirectory: process.env.DATA_DIR || null, commit: process.env.SOURCE_COMMIT || 'unknown' });
+  // An uncaught failure is written synchronously; the container restarts the process.
+  const crashed = error => { server.errors.crash(error); console.error('Video Sync relay crashed.'); process.exit(1); };
+  process.on('uncaughtException', crashed);
+  process.on('unhandledRejection', crashed);
+  await server.usage.start();
   server.listen(port, host, () => console.log('Video Sync relay started.'));
   // Operators pick restart moments from this line (`docker compose logs app`).
   // It repeats every 5 minutes while rooms exist or the count changed.
