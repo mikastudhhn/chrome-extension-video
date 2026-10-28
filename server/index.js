@@ -403,7 +403,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const crashed = error => { server.errors.crash(error); console.error('Video Sync relay crashed.'); process.exit(1); };
   process.on('uncaughtException', crashed);
   process.on('unhandledRejection', crashed);
-  await server.usage.start();
+  // A broken data volume must not stop the relay: the sums then stay in memory.
+  await server.usage.start().catch(error => console.error(`Nutzungsstatistik ohne Datei: ${error.message}`));
   server.listen(port, host, () => console.log('Video Sync relay started.'));
   // Operators pick restart moments from this line (`docker compose logs app`).
   // It repeats every 5 minutes while rooms exist or the count changed.

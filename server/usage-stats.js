@@ -67,7 +67,7 @@ export class UsageStats {
 
   async stop() {
     await this.flush();
-    if (this.marker) await rm(this.marker, { force: true });
+    if (this.marker) await rm(this.marker, { force: true }).catch(error => this.report(`Marker nicht entfernt: ${error.message}`));
   }
 
   incident(reason) { if (INCIDENTS.includes(reason)) this.incidents[reason] = this.now(); }
